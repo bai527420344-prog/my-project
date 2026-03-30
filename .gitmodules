@@ -1,0 +1,3 @@
+[submodule "Lib"]
+	path = Lib
+	url = git@git.rz.tu-bs.de:ida/rosy/research/wireless-protocols/flora/flora-lib.git 
