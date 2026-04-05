@@ -186,7 +186,7 @@ uint32_t hs_timer_get_schedule_timestamp(void)
 uint64_t hs_timer_get_capture_timestamp(void)
 {
   ENTER_CRITICAL_SECTION();
-  uint64_t timestamp = htim2.Instance->CCR1;
+  uint64_t timestamp = htim2.Instance->CCR4;
   timestamp |= ((uint64_t) hs_timer_capture_counter_extension) << 32;
   LEAVE_CRITICAL_SECTION();
 #if HS_TIMER_COMPENSATE_DRIFT
@@ -199,7 +199,7 @@ uint64_t hs_timer_get_capture_timestamp(void)
 uint64_t hs_timer_get_compare_timestamp(void)
 {
   ENTER_CRITICAL_SECTION();
-  uint64_t timestamp = htim2.Instance->CCR1;
+  uint64_t timestamp = htim2.Instance->CCR4;
   timestamp |= ((uint64_t) hs_timer_schedule_counter_extension) << 32;
   LEAVE_CRITICAL_SECTION();
 #if HS_TIMER_COMPENSATE_DRIFT
@@ -249,7 +249,7 @@ uint32_t hs_timer_get_counter_extension(void)
 void hs_timer_capture(hs_timer_cb_t callback)
 {
   capture_callback = callback;
-  HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
+  HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_4);
 }
 
 
@@ -336,7 +336,7 @@ void hs_timer_generic_stop(void)
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Instance == TIM2) {
-    if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
+    if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4) {
       //HAL_TIM_OC_Stop_IT(&htim2, TIM_CHANNEL_3);
       hs_timer_capture_counter_extension = hs_timer_counter_extension;
 

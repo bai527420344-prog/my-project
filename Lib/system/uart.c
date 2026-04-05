@@ -32,10 +32,10 @@
 
 
 #ifndef DEVKIT
-  #define DMA_UART_TX hdma_usart1_tx
-  #define DMA_UART_RX hdma_usart1_rx
-  extern DMA_HandleTypeDef hdma_usart1_tx;
-  extern DMA_HandleTypeDef hdma_usart1_rx;
+  #define DMA_UART_TX hdma_usart2_tx
+  #define DMA_UART_RX hdma_usart2_rx
+  extern DMA_HandleTypeDef hdma_usart2_tx;
+  extern DMA_HandleTypeDef hdma_usart2_rx;
 #else
   #define DMA_UART_TX hdma_usart2_tx
   #define DMA_UART_RX hdma_usart2_rx

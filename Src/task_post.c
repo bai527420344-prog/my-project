@@ -70,7 +70,6 @@ void vTask_post(void const * argument)
       if (!ps_validate_msg(&msg_buffer)) {
         LOG_WARNING("invalid message received from node %u (type: %u  length: %u)", msg_buffer.header.device_id, msg_buffer.header.type, msg_buffer.header.payload_len);
       }
-      //TODO message processing
       rcvd++;
     }
     if (rcvd) {

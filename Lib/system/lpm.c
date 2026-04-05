@@ -43,7 +43,7 @@ extern LPTIM_HandleTypeDef   hlptim1;
 extern TIM_HandleTypeDef     htim1;
 extern TIM_HandleTypeDef     htim2;
 extern TIM_HandleTypeDef     htim16;
-extern SPI_HandleTypeDef     hspi1;
+extern SPI_HandleTypeDef     RADIO_SPI;
 #ifdef HAL_RNG_MODULE_ENABLED
 extern RNG_HandleTypeDef     hrng;
 #endif /* HAL_RNG_MODULE_ENABLED */
@@ -161,12 +161,11 @@ bool lpm_prepare(void)
       __HAL_TIM_DISABLE(&htim1);
       __HAL_TIM_DISABLE(&htim2);
       __HAL_UART_DISABLE(&UART);
-      __HAL_SPI_DISABLE(&hspi1);
+  #if RADIO_ENABLE
+      __HAL_SPI_DISABLE(&RADIO_SPI);
+  #endif /* RADIO_ENABLE */
   #ifndef DEVKIT
       __HAL_TIM_DISABLE(&htim16);
-  #if RADIO_ENABLE
-      __HAL_SPI_DISABLE(&hspi2);
-  #endif /* RADIO_ENABLE */
   #endif /* DEVKIT */
   #ifdef HAL_RNG_MODULE_ENABLED
       __HAL_RNG_DISABLE(&hrng);
@@ -228,16 +227,15 @@ bool lpm_prepare(void)
   #endif /* LPM_DISABLE_GPIO_CLOCKS */
 
       /* disable and clear unused interrupts */
-      HAL_NVIC_DisableIRQ(USART1_IRQn);
-      HAL_NVIC_DisableIRQ(DMA1_Channel4_IRQn);
-      HAL_NVIC_DisableIRQ(DMA1_Channel5_IRQn);
-      HAL_NVIC_DisableIRQ(SPI1_IRQn);
-      HAL_NVIC_DisableIRQ(SPI2_IRQn);
-      HAL_NVIC_DisableIRQ(TIM1_UP_TIM16_IRQn);
+      HAL_NVIC_DisableIRQ(UART_IRQn);
+      HAL_NVIC_DisableIRQ(UART_DMA_RX_IRQn);
+      HAL_NVIC_DisableIRQ(UART_DMA_TX_IRQn);
+      HAL_NVIC_DisableIRQ(RADIO_SPI_IRQn);
+      HAL_NVIC_DisableIRQ(HALTICK_IRQ);
       HAL_NVIC_DisableIRQ(TIM2_IRQn);
       /* note: do not disable LPTIM ARRM interrupt in LPM (see errata sheet) */
 
-      /* configure RF_DIO1 on PC13 interrupt for wakeup from LPM */
+      /* clear the radio wakeup EXTI line before entering STOP2 */
   #ifdef RADIO_DIO1_WAKEUP_Pin
       __HAL_GPIO_EXTI_CLEAR_IT(RADIO_DIO1_WAKEUP_Pin); // important for low-power consumption in STOP2 mode -> see README
   #endif /* RADIO_DIO1_WAKEUP_Pin */
@@ -310,24 +308,22 @@ void lpm_resume(void)
     __HAL_TIM_ENABLE(&htim1);
     __HAL_TIM_ENABLE(&htim2);
     __HAL_UART_ENABLE(&UART);
-    __HAL_SPI_ENABLE(&hspi1);
+  #if RADIO_ENABLE
+    __HAL_SPI_ENABLE(&RADIO_SPI);
+  #endif /* RADIO_ENABLE */
   #ifndef DEVKIT
     __HAL_TIM_ENABLE(&htim16);
-  #if RADIO_ENABLE
-    __HAL_SPI_ENABLE(&hspi2);
-  #endif /* RADIO_ENABLE */
   #endif /* DEVKIT */
   #ifdef HAL_RNG_MODULE_ENABLED
     __HAL_RNG_ENABLE(&hrng);
   #endif /* HAL_RNG_MODULE_ENABLED */
 
     /* re-enable interrupts */
-    HAL_NVIC_EnableIRQ(USART1_IRQn);
-    HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
-    HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
-    HAL_NVIC_EnableIRQ(SPI1_IRQn);
-    HAL_NVIC_EnableIRQ(SPI2_IRQn);
-    HAL_NVIC_EnableIRQ(TIM1_UP_TIM16_IRQn);
+    HAL_NVIC_EnableIRQ(UART_IRQn);
+    HAL_NVIC_EnableIRQ(UART_DMA_RX_IRQn);
+    HAL_NVIC_EnableIRQ(UART_DMA_TX_IRQn);
+    HAL_NVIC_EnableIRQ(RADIO_SPI_IRQn);
+    HAL_NVIC_EnableIRQ(HALTICK_IRQ);
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
 
     /* disable RF_DIO1 on PC13 interrupt (only needed for wake-up from LPM) */

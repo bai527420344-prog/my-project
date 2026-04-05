@@ -46,7 +46,7 @@
 /* network parameters */
 #define HOST_ID                         1           /* note: host ID is only used to determine whether a node is a host node (irrelevant for source nodes); config will be overwritten by binary patching! */
 #if !FLOCKLAB
-  #define NODE_ID                       2
+  #define NODE_ID                       HOST_ID
 #endif /* FLOCKLAB */
 #define IS_HOST                         (NODE_ID == host_id)
 
@@ -107,7 +107,7 @@
 
 /* logging */
 #define LOG_ENABLE                      1
-#define LOG_LEVEL                       LOG_LEVEL_VERBOSE
+#define LOG_LEVEL                       LOG_LEVEL_INFO
 #define LOG_USE_DMA                     0
 #define LOG_BUFFER_SIZE                 4096
 #if LOG_USE_DMA

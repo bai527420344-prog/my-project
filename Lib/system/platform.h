@@ -35,8 +35,8 @@
 #define FLASH_MEM_START     0x08000000  // = FLASH_BASE
 #define FLASH_MEM_PAGE_SIZE 2048        // = FLASH_PAGE_SIZE
 #ifndef DEVKIT
-  #define FLASH_MEM_SIZE    0x00040000
-  #define FLASH_MEM_PAGES   (FLASH_MEM_SIZE / FLASH_MEM_PAGE_SIZE)    // 128
+  #define FLASH_MEM_SIZE    0x00100000  // 1MB (STM32L476RG)
+  #define FLASH_MEM_PAGES   (FLASH_MEM_SIZE / FLASH_MEM_PAGE_SIZE)    // 512
 #else
   #define FLASH_MEM_SIZE    0x00100000  // 1MB
   #define FLASH_MEM_PAGES   (FLASH_MEM_SIZE / FLASH_MEM_PAGE_SIZE)    // 512
@@ -47,8 +47,8 @@
 
 
 #ifndef DEVKIT
-  #define RADIO_SPI hspi2
-  extern SPI_HandleTypeDef hspi2;
+  #define RADIO_SPI hspi1
+  extern SPI_HandleTypeDef hspi1;
   #ifndef UART
     #define UART huart2
   #endif
@@ -59,6 +59,11 @@
   #define UART huart2
   extern UART_HandleTypeDef huart2;
 #endif
+
+#define UART_IRQn           USART2_IRQn
+#define UART_DMA_RX_IRQn    DMA1_Channel6_IRQn
+#define UART_DMA_TX_IRQn    DMA1_Channel7_IRQn
+#define RADIO_SPI_IRQn      SPI1_IRQn
 
 
 #define HALTICK_TIMER       htim1

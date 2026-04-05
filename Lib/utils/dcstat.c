@@ -30,7 +30,6 @@
 
 #include "flora_lib.h"
 
-
 void dcstat_start(dcstat_t* dc)
 {
   if (dc) {

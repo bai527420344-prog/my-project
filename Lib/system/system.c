@@ -43,7 +43,7 @@ void system_boot(void)
 }
 
 
-void system_init(void)
+void system_init_platform(void)
 {
   /* init timers */
 #ifdef HAL_RTC_MODULE_ENABLED
@@ -65,28 +65,34 @@ void system_init(void)
   bolt_init();
 #endif /* BOLT_ENABLE */
 
+  /* set seed for random generator */
+  random_init();
+
+  /* configure interrupts / wakeup resources */
+#ifndef DEVKIT
+  HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN1_HIGH);
+  HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN2_HIGH);
+#endif
+
+  /* the radio wakeup EXTI is only needed when entering LPM */
+  HAL_NVIC_DisableIRQ(RADIO_DIO1_WAKEUP_EXTI_IRQn);
+
+#if !CLI_ENABLE && !LOG_USE_DMA
+  HAL_NVIC_DisableIRQ(UART_IRQn);
+#endif /* CLI_ENABLE */
+}
+
+
+void system_init(void)
+{
+  system_init_platform();
+
   /* init radio and protocols */
 #if RADIO_ENABLE
   radio_init();
 #endif
 #if CLI_ENABLE
   cli_init();
-#endif /* CLI_ENABLE */
-
-  /* set seed for random generator */
-  random_init();
-
-  /* configure interrupts */
-#ifndef DEVKIT
-  HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN1_HIGH);
-  HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN2_HIGH);
-#endif
-
-  /* make sure PC13 (RF_DIO1) EXTI is disabled (only needed for wakeup from LPM) */
-  HAL_NVIC_DisableIRQ(EXTI15_10_IRQn);
-
-#if !CLI_ENABLE && !LOG_USE_DMA
-  HAL_NVIC_DisableIRQ(USART1_IRQn);
 #endif /* CLI_ENABLE */
 
   system_initialized = true;
@@ -103,7 +109,6 @@ void system_run(void)
     }
   }
 }
-
 
 void system_update(void)
 {
@@ -161,7 +166,6 @@ void system_wakeup(void)
   radio_wakeup();
 }
 
-
 void system_reset(void)
 {
   radio_reset();
@@ -211,4 +215,3 @@ const char* system_get_reset_cause(uint8_t* out_reset_flag)
   }
   return "?";
 }
-

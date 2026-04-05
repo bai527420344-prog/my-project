@@ -77,7 +77,6 @@ static void radio_restore_config(bool reset)
 
   // perform a full radio reset?
   if (reset) {
-
     // assign callback functions for radio driver
     radio_events.CadDone    = radio_cad_done_cb;
     radio_events.RxDone     = radio_rx_done_cb;

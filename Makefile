@@ -122,7 +122,7 @@ Lib/bolt/bolt.c
 
 # ASM sources
 ASM_SOURCES =  \
-startup_stm32l433xx.s
+startup_stm32l476xx.s
 
 # ASMM sources
 ASMM_SOURCES = 
@@ -173,7 +173,7 @@ AS_DEFS =
 # C defines
 C_DEFS =  \
 -DUSE_HAL_DRIVER \
--DSTM32L433xx
+-DSTM32L476xx
 
 
 # AS includes
@@ -221,7 +221,7 @@ CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 # LDFLAGS
 #######################################
 # link script
-LDSCRIPT = STM32L433CCUX_FLASH.ld
+LDSCRIPT = STM32L476RGTx_FLASH.ld
 
 # libraries
 LIBS = -lc -lm -lnosys 
@@ -279,7 +279,7 @@ clean:
 
 # *** EOF ***
 
-device = STM32L433CC
+device = STM32L476RG
 $(BUILD_DIR)/jflash: $(BUILD_DIR)/$(TARGET).bin
 	@touch $@
 	@echo device $(device) > $@

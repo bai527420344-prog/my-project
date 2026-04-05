@@ -37,9 +37,9 @@
   */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  if (GPIO_Pin == GPIO_PIN_13)
+  if (GPIO_Pin == GPIO_PIN_4)
   {
-    /* RADIO_DIO1 interrupt triggered (PC13) */
+    /* RADIO_DIO1 interrupt triggered (PB4, via PB11->PB4 jumper) */
     GPIO_Radio_Callback();
   }
   else if (GPIO_Pin == GPIO_PIN_3)

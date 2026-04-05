@@ -43,6 +43,7 @@
 
 
 void system_boot(void);
+void system_init_platform(void);
 void system_init(void);
 void system_run(void);
 void system_update(void);
