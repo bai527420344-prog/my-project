@@ -31,89 +31,107 @@
 #include "flora_lib.h"
 
 const uint8_t gloria_modulations[]             = { 3,  5,  7, 9 };
-const int8_t  gloria_powers[]                  = { 0, 10, 22 };                                 // dBm
-const uint8_t gloria_default_power_levels[]    = { 0,  0,  0,  0,  0,  0,  0,  0,  2,  2 };     // see radio_powers
+const int8_t  gloria_powers[]                  = { 0, 10, 12 };                                 // dBm
+const uint8_t gloria_default_power_levels[]    = { 0,  0,  0,  0,  0,  0,  0,  0,  2,  2,  2 };  // see radio_powers
 const uint8_t gloria_default_retransmissions[] = { 3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3 };
 const uint8_t gloria_default_acks[]            = { 3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3 };
 const uint8_t gloria_default_data_slots[]      = { 4,  4,  4,  4,  8,  8, 12, 12, 16, 16, 16 };
 
+/*
+ * SX1280 theoretical timing values (20260413)
+ *
+ * Calculated from SX1262 empirical measurements (20200812) using decomposition:
+ *   each field = fixed_mcu_overhead + N * symbol_time
+ * where symbol_time is recalculated for SX1280 @ BW=203.125 kHz.
+ *
+ * Decomposition models (verified against SX1262 data, <4% error):
+ *   rxOffset:          SF12-SF7: 3.0 * Ts,          SF6-SF5: 5.615 * Ts
+ *   floodInitOverhead: SF12-SF7: 9506 + 3.0 * Ts,   SF6-SF5: 9507 + 5.615 * Ts
+ *   slotOverhead:      17657 + 15.876 * Ts
+ *   slotAckOverhead:   23055 + 18.856 * Ts
+ *   txSync:            SF12-SF7: ratio 8/13,         SF6-SF5: 2276 + 26.875 * Ts
+ *
+ * where Ts = SX1280 symbol time at BW=203.125 kHz (from radio_lora_symb_times[0][]).
+ * GFSK entries (8-10) kept at SX1262 values (same bit rates, similar transition times).
+ *
+ * These are THEORETICAL starting values. Hardware calibration required in R6.
+ */
 const gloria_timings_t gloria_timings[] = {
-    { // 0 (SF12)
-        .slotOverhead       = 4179556,  // 522.444 ms
-        .slotAckOverhead    = 4965988,  // 620.749 ms
-        .floodInitOverhead  = 795938,   // 99.492 ms
-        .rxOffset           = 786432,   // 98.304 ms
-        .txSync             = 6078848,  // 759.856 ms (updated 20200812)
+    { // 0 (SF12)  Ts=161320
+        .slotOverhead       = 2578773,  // 322.347 ms
+        .slotAckOverhead    = 3064905,  // 383.113 ms
+        .floodInitOverhead  = 493466,   // 61.683 ms
+        .rxOffset           = 483960,   // 60.495 ms
+        .txSync             = 3740830,  // 467.604 ms (theoretical 20260413)
     },
-    { // 1 (SF11)
-        .slotOverhead       = 2132075,  // 266.509 ms
-        .slotAckOverhead    = 2525291,  // 315.661 ms
-        .floodInitOverhead  = 402722,   // 50.340 ms
-        .rxOffset           = 393216,   // 49.152 ms
-        .txSync             = 3032500,  // 379.063 ms (updated 20200812)
+    { // 1 (SF11)  Ts=80656
+        .slotOverhead       = 1298152,  // 162.269 ms
+        .slotAckOverhead    = 1543905,  // 192.988 ms
+        .floodInitOverhead  = 251474,   // 31.434 ms
+        .rxOffset           = 241968,   // 30.246 ms
+        .txSync             = 1866154,  // 233.269 ms (theoretical 20260413)
     },
-    { // 2 (SF10)
-        .slotOverhead       = 1050062,  // 131.258 ms
-        .slotAckOverhead    = 1246670,  // 155.834 ms
-        .floodInitOverhead  = 206114,   // 25.764 ms
-        .rxOffset           = 196608,   // 24.576 ms
-        .txSync             = 1513412,  // 189.177 ms (updated 20200812)
+    { // 2 (SF10)  Ts=40328
+        .slotOverhead       = 657904,   // 82.238 ms
+        .slotAckOverhead    = 783480,   // 97.935 ms
+        .floodInitOverhead  = 130490,   // 16.311 ms
+        .rxOffset           = 120984,   // 15.123 ms
+        .txSync             = 931330,   // 116.416 ms (theoretical 20260413)
     },
-    { // 3 (SF9)
-        .slotOverhead       = 537151,   // 67.144 ms
-        .slotAckOverhead    = 635455,   // 79.432 ms
-        .floodInitOverhead  = 107810,   // 13.476 ms
-        .rxOffset           = 98304,    // 12.288 ms
-        .txSync             = 755928,   // 94.491 ms (updated 20200812)
+    { // 3 (SF9)  Ts=20168
+        .slotOverhead       = 337844,   // 42.231 ms
+        .slotAckOverhead    = 403343,   // 50.418 ms
+        .floodInitOverhead  = 70010,    // 8.751 ms
+        .rxOffset           = 60504,    // 7.563 ms
+        .txSync             = 465186,   // 58.148 ms (theoretical 20260413)
     },
-    { // 4 (SF8)
-        .slotOverhead       = 283375,   // 35.422 ms
-        .slotAckOverhead    = 332527,   // 41.566 ms
-        .floodInitOverhead  = 58658,    // 7.332 ms
-        .rxOffset           = 49152,    // 6.144 ms
-        .txSync             = 378216,   // 47.277 ms (updated 20200812)
+    { // 4 (SF8)  Ts=10080
+        .slotOverhead       = 177687,   // 22.211 ms
+        .slotAckOverhead    = 213123,   // 26.640 ms
+        .floodInitOverhead  = 39746,    // 4.968 ms
+        .rxOffset           = 30240,    // 3.780 ms
+        .txSync             = 232748,   // 29.094 ms (theoretical 20260413)
     },
-    { // 5 (SF7)
-        .slotOverhead       = 153639,   // 19.205 ms
-        .slotAckOverhead    = 178215,   // 22.277 ms
-        .floodInitOverhead  = 34082,    // 4.260 ms
-        .rxOffset           = 24576,    // 3.072 ms
-        .txSync             = 189864,   // 23.733 ms (updated 20200812)
+    { // 5 (SF7)  Ts=5040
+        .slotOverhead       = 97672,    // 12.209 ms
+        .slotAckOverhead    = 118089,   // 14.761 ms
+        .floodInitOverhead  = 24626,    // 3.078 ms
+        .rxOffset           = 15120,    // 1.890 ms
+        .txSync             = 116839,   // 14.605 ms (theoretical 20260413)
     },
-    { // 6 (SF6)
-        .slotOverhead       = 79827,    // 9.978 ms
-        .slotAckOverhead    = 102827,   // 12.853 ms
-        .floodInitOverhead  = 32507,    // 4.063 ms
-        .rxOffset           = 23001,    // 2.875 ms
-        .txSync             = 112356,   // 14.045 ms (updated 20200812)
+    { // 6 (SF6)  Ts=2520
+        .slotOverhead       = 57665,    // 7.208 ms
+        .slotAckOverhead    = 70572,    // 8.822 ms
+        .floodInitOverhead  = 23657,    // 2.957 ms
+        .rxOffset           = 14151,    // 1.769 ms
+        .txSync             = 70001,    // 8.750 ms (theoretical 20260413)
     },
-    { // 7 (SF5)
-        .slotOverhead       = 50171,    // 6.271 ms
-        .slotAckOverhead    = 61672,    // 7.709 ms
-        .floodInitOverhead  = 21007,    // 2.626 ms
-        .rxOffset           = 11500,    // 1.438 ms
-        .txSync             = 57316,    // 7.165 ms (updated 20200812)
+    { // 7 (SF5)  Ts=1264
+        .slotOverhead       = 37724,    // 4.716 ms
+        .slotAckOverhead    = 46889,    // 5.861 ms
+        .floodInitOverhead  = 16604,    // 2.076 ms
+        .rxOffset           = 7097,     // 0.887 ms
+        .txSync             = 36246,    // 4.531 ms (theoretical 20260413)
     },
     { // 8 (FSK 125k)
         .slotOverhead       = 28000,    // 3.5 ms
         .slotAckOverhead    = 28000,    // 3.5 ms
         .floodInitOverhead  = 18000,    // 2.25 ms
         .rxOffset           = 4096,     // 512.000 us
-        .txSync             = 4137,     // 517.125 us (updated 20200812)
+        .txSync             = 4137,     // 517.125 us (SX1262 value, same bitrate)
     },
     { // 9 (FSK 200k)
         .slotOverhead       = 26400,    // 3.3 ms
         .slotAckOverhead    = 26400,    // 3.3 ms
         .floodInitOverhead  = 18000,    // 2.25 ms
         .rxOffset           = 2560,     // 320.000 us
-        // .txSync          = 3206,     // 400.75 us
-        .txSync             = 3034,     // 379.25 us (updated 20200812)
+        .txSync             = 3034,     // 379.25 us (SX1262 value, same bitrate)
     },
     { // 10 (FSK 250k)
         .slotOverhead       = 14000,    // 1.75 ms
         .slotAckOverhead    = 14000,    // 1.75 ms
         .floodInitOverhead  = 18000,    // 2.25 ms
-        .rxOffset           = 2560,     // 320.000 us (copy from 9)
-        .txSync             = 3140,     // 392.5 us (updated 20200814)
+        .rxOffset           = 2560,     // 320.000 us
+        .txSync             = 3140,     // 392.5 us (SX1262 value, same bitrate)
     },
 };

@@ -279,7 +279,7 @@ void USART2_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles EXTI line4 interrupt (RADIO_DIO1_WAKEUP via PB11->PB4 jumper).
+  * @brief This function handles EXTI line4 interrupt (RADIO_DIO1_WAKEUP via PB4-PB11 jumper wire).
   */
 void EXTI4_IRQHandler(void)
 {

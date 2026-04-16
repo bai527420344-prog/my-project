@@ -34,6 +34,10 @@
 
 static command_return_t slwb_start_command_handler(command_execution_t execution);
 
+static void slwb_set_radio_log(bool enabled) {
+  (void)enabled;
+}
+
 
 static parameter_t slwb_start_parameter_lr_mod = {
     .name = "lr_modulation",
@@ -152,9 +156,9 @@ static command_t slwb_start_command = {
 
 static command_return_t slwb_start_command_handler(command_execution_t execution) {
 #ifdef RADIO_LOG
-  set_radio_log(true);
+  slwb_set_radio_log(true);
 #else
-  //set_radio_log(false);  FIXME
+  slwb_set_radio_log(false);
 #endif
   value_t* param = NULL;
 

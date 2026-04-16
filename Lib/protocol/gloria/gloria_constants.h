@@ -51,8 +51,8 @@
 #define GLORIA_HSTIMER_TRIGGER_DELAY  36        // ~4.5 us  implementation specific time between the timer compare trigger and the actual NSS pin actuation (assumes ~18 CPU cycles for ISR entry + register saving + ISR_IND setting)
 #define GLORIA_TIME_BUFFER            800       // 100 us, time buffer for RX / TX radio setup
 #define GLORIA_FLOOD_FINISH_OVERHEAD  152       // 19.000 us
-#define GLORIA_RX_TRIGGER_DELAY       682       // 85.250 us   delay after the rx command has been sent to the radio until it is executed
-#define GLORIA_TX_TRIGGER_DELAY       1010      // 126.250 us  delay after the tx command has been sent to the radio until it is executed
+#define GLORIA_RX_TRIGGER_DELAY       800       // 100.000 us  delay after the rx command has been sent to the radio until it is executed (SX1280: STBY_RC->RX = 100 us)
+#define GLORIA_TX_TRIGGER_DELAY       840       // 105.000 us  delay after the tx command has been sent to the radio until it is executed (SX1280: STBY_RC->TX = 105 us)
 #define GLORIA_RX_SETUP               5326      // 665.750 us  time needed for the rx radio setup
 #define GLORIA_TX_SETUP               10083     // 1.260 ms    time needed for the tx radio setup
 

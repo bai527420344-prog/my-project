@@ -32,40 +32,36 @@
 #define RADIO_RADIO_CONSTANTS_H_
 
 
-// SX1262 Timings from datasheet in us
+// SX1280 Timings from datasheet in us
 #define RADIO_TIME_SLEEP_COLD_TO_STBY   3500 // cold start (no data retention)
 #define RADIO_TIME_SLEEP_WARM_TO_STBY   340 // warm start (with data retention)
 #define RADIO_TIME_STBY_RC_TO_STBY_XOSC 31
-#define RADIO_TIME_STBY_RC_TO_FS        50
-#define RADIO_TIME_STBY_RC_TO_RX        83
-#define RADIO_TIME_STBY_RC_TO_TX        126
+#define RADIO_TIME_STBY_RC_TO_FS        55
+#define RADIO_TIME_STBY_RC_TO_RX        100
+#define RADIO_TIME_STBY_RC_TO_TX        105
 #define RADIO_TIME_STBY_XOSC_TO_FS      40
 #define RADIO_TIME_STBY_XOSC_TO_RX      62
 #define RADIO_TIME_STBY_XOSC_TO_TX      105
-#define RADIO_TIME_FS_TO_RX             41
-#define RADIO_TIME_FS_TO_TX             76
-#define RADIO_TIME_RX_TO_FS             15
-#define RADIO_TIME_RX_TO_TX             92
+#define RADIO_TIME_FS_TO_RX             45
+#define RADIO_TIME_FS_TO_TX             50
+#define RADIO_TIME_RX_TO_FS             10
+#define RADIO_TIME_RX_TO_TX             60
 
-#define RADIO_TIME_PA_RAMP_UP           40 // us
+#define RADIO_TIME_PA_RAMP_UP           20 // us
 #define RADIO_SPI_SPEED                 12580000 // 12 MeBit/s
 
 // Radio complete Wake-up Time with margin for temperature compensation
 #define RADIO_WAKEUP_TIME               3 // [ms]
 
-// SX1262 power values
-#define RADIO_MAX_POWER                 22 // dBm (SX1262)
-#define RADIO_MIN_POWER                 -9 // dBm (SX1262)
+// SX1280 power values
+#define RADIO_MAX_POWER                 12 // dBm (SX1280)
+#define RADIO_MIN_POWER                 -18 // dBm (SX1280)
 
 #define RADIO_NUM_MODULATIONS           11
 #define RADIO_NUM_CAD_PARAMS            8
-#define RADIO_NUM_BANDS                 52
+#define RADIO_NUM_BANDS                 40
 
-#ifndef US915
-#define RADIO_DEFAULT_BAND              40
-#else
-#define RADIO_DEFAULT_BAND              0
-#endif
+#define RADIO_DEFAULT_BAND              24
 
 #define RADIO_MAX_PAYLOAD_SIZE          255
 
@@ -88,7 +84,7 @@ typedef enum
 {
   LORA_SYNCWORD_PUBLIC = LORA_MAC_PUBLIC_SYNCWORD,
   LORA_SYNCWORD_PRIVATE = LORA_MAC_PRIVATE_SYNCWORD,
-  LORA_SYNCWORD_PERMASENSE = (LORA_MAC_PUBLIC_SYNCWORD ^ 0xdada)
+  LORA_SYNCWORD_PERMASENSE = (LORA_MAC_PUBLIC_SYNCWORD ^ 0xDA)
 } radio_lora_syncword_t;
 
 typedef struct
@@ -105,7 +101,7 @@ typedef struct
 {
   uint32_t centerFrequency;
   uint32_t bandwidth;
-  uint8_t dutyCycle; // in 0.1 %
+  uint16_t dutyCycle; // in 0.1 %
   int8_t maxPower;
 } radio_band_t;
 

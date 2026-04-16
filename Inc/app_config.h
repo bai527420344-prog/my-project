@@ -71,13 +71,13 @@
 #define RECEIVE_QUEUE_SIZE              LWB_MAX_DATA_SLOTS              /* #messages */
 
 /* Gloria config */
-#define GLORIA_INTERFACE_POWER          1    /* transmit power in dBm (max. value is 14 for most RF bands); keep non-zero init for binary patching!; config will be overwritten by binary patching! */
+#define GLORIA_INTERFACE_POWER          1    /* transmit power in dBm (max 12 for SX1280); keep non-zero init for binary patching!; config will be overwritten by binary patching! */
 #if FLOCKLAB
-  #define GLORIA_INTERFACE_MODULATION   10   /* 7 = LoRa SF5, 10 = FSK 250kbit/s (see radio_constants.c for details); config will be overwritten by binary patching! */
-  #define GLORIA_INTERFACE_RF_BAND      46   /* 869.01 MHz (see table in radio_constants.c for options); config will be overwritten by binary patching! */
+  #define GLORIA_INTERFACE_MODULATION   10   /* DIAGNOSTIC: 10 = GFSK 250k (same timing as old SX1262 project) */
+  #define GLORIA_INTERFACE_RF_BAND      24   /* 2450 MHz (see table in radio_constants.c for options); config will be overwritten by binary patching! */
 #else
-  #define GLORIA_INTERFACE_MODULATION   10   /* 7 = LoRa SF5, 10 = FSK 250kbit/s (see radio_constants.c for details); config will be overwritten by binary patching! */
-  #define GLORIA_INTERFACE_RF_BAND      48   /* 869.46 MHz (see table in radio_constants.c for options); config will be overwritten by binary patching! */
+  #define GLORIA_INTERFACE_MODULATION   10   /* DIAGNOSTIC: 10 = GFSK 250k (same timing as old SX1262 project) */
+  #define GLORIA_INTERFACE_RF_BAND      24   /* 2450 MHz (see table in radio_constants.c for options); config will be overwritten by binary patching! */
 #endif /* FLOCKLAB */
 
 /* LWB config */
@@ -88,7 +88,7 @@
 #define LWB_N_TX                        2
 #define LWB_NUM_HOPS                    6
 #define LWB_T_GAP                       LWB_MS_TO_TICKS(10)
-#define LWB_SCHED_PERIOD                15
+#define LWB_SCHED_PERIOD                15      // same as old eval_l476 project
 #define LWB_CONT_USE_HSTIMER            1
 #define LWB_MAX_PAYLOAD_LEN             80
 #define LWB_MAX_DATA_SLOTS              LWB_MAX_NUM_NODES
@@ -103,7 +103,7 @@
 #define LPTIMER_RESET_WDG_ON_OVF        0
 #define LPTIMER_RESET_WDG_ON_EXP        0
 #define LPTIMER_CHECK_EXP_TIME          1
-#define CLI_ENABLE                      0           /* command line interface */
+#define CLI_ENABLE                      1           /* command line interface */
 
 /* logging */
 #define LOG_ENABLE                      1

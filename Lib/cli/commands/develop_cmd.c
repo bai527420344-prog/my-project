@@ -120,7 +120,7 @@ static parameter_t develop_radioconfig_parameter_datarate = {
 
 static parameter_t develop_radioconfig_parameter_power = {
     .name = "txpower",
-    .description = "Transmit power from -9 up to 22 dBm (default 0 dBm).",
+    .description = "Transmit power from -18 up to 12 dBm (default 0 dBm).",
 
     .type = CMD_PARAMETER_POWER,
 
@@ -141,9 +141,10 @@ static parameter_t develop_radioconfig_parameter_bandwidth = {
     .description =  "Bandwidth for modulation:\r\n\r\n"
             "\tLoRa:\r\n"
 
-            "\t\t0: 125kHz (default)\r\n"
-            "\t\t1: 250kHz\r\n"
-            "\t\t2: 500kHz\r\n"
+            "\t\t0: 203.125kHz (default)\r\n"
+            "\t\t1: 406.25kHz\r\n"
+            "\t\t2: 812.5kHz\r\n"
+            "\t\t3: 1625kHz\r\n"
 
 
             "\tFSK:\r\n"
@@ -363,7 +364,7 @@ static parameter_t* develop_colibriwake_parameters[] = {
 static command_t develop_random_number_command = {
   .execution_ptr = &develop_random_number_command_handler,
   .name = "random",
-  .description = "Get random 32-bit integer from SX1262 RNG",
+  .description = "Get random 32-bit integer from the SX1280 RNG",
   .prompt = "",
   .parameters = NULL,
   .parameter_count = 0,
@@ -379,7 +380,7 @@ static command_t develop_random_number_command = {
 static command_t develop_radioconfig_command = {
   .execution_ptr = &develop_radioconfig_command_handler,
   .name = "config",
-  .description = "Set Rx & Tx configuration on SX1262 according.",
+  .description = "Set Rx & Tx configuration on SX1280 according.",
   .prompt = "",
   .parameters = (parameter_t**) &develop_radioconfig_parameters,
   .parameter_count = PARAM_COUNT(develop_radioconfig_parameters),
@@ -411,7 +412,7 @@ static command_t develop_linktestmode_command = {
 static command_t develop_testlink_command = {
   .execution_ptr = &develop_testlink_command_handler,
   .name = "testlink",
-  .description = "Send a string via the SX1262's current configuration",
+  .description = "Send a string via the SX1280's current configuration",
   .prompt = "",
   .parameters = (parameter_t**) develop_testlink_parameters,
   .parameter_count = PARAM_COUNT(develop_testlink_parameters),
@@ -500,7 +501,7 @@ void develop_register_commands()
  ******************************************************************************/
 
 command_return_t develop_random_number_command_handler(command_execution_t execution) {
-  int32_t random = SX126xGetRandom();
+  int32_t random = SX1280GetRandom();
   char buf[32];
   snprintf((char*) buf, 32, "%i", (int) random);
   cli_println(buf);
@@ -511,7 +512,7 @@ command_return_t develop_radioconfig_command_handler(command_execution_t executi
   uint8_t count = command_get_unnamed_parameter_count(&execution);
   if (count >= 3) {
     uint8_t modulation = 0;
-    uint32_t freq = 867300000; // TODO: use global defaults define in a config file
+    uint32_t freq = radio_bands[RADIO_DEFAULT_BAND].centerFrequency;
     int32_t datarate = -1;
     int8_t power = 0;
     int32_t bandwidth = -1;
@@ -822,7 +823,7 @@ static void linktestmode_rx_callback(uint8_t* payload, uint8_t size) {
   radio_set_tx_callback(&develop_radio_tx_callback);
 
   // start tx
-  radio_transmit((uint8_t*) payload, size, false);
+  radio_transmit((uint8_t*) payload, size);
 }
 
 static void testlink_rx_callback(uint8_t* payload, uint8_t size) {

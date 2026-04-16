@@ -348,6 +348,21 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 }
 
 
+/* Emulate a TIM2_CH4 input capture event from EXTI context.
+ * Called when DIO1 is detected on PB4 (EXTI4) instead of PB11 (TIM2_CH4).
+ * Uses a software snapshot of TIM2 CNT as an approximate capture value
+ * (~1-2 us less precise than hardware IC, but sufficient for TxDone/RxDone). */
+void hs_timer_trigger_capture_from_exti(void)
+{
+  htim2.Instance->CCR4 = __HAL_TIM_GET_COUNTER(&htim2);
+  hs_timer_capture_counter_extension = hs_timer_counter_extension;
+
+  if (capture_callback) {
+    capture_callback();
+  }
+}
+
+
 void hs_timer_handle_overflow(TIM_HandleTypeDef *htim)
 {
   hs_timer_counter_extension++;

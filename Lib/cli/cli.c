@@ -81,13 +81,12 @@ void cli_init() {
 #endif /* HAL_RTC_MODULE_ENABLED */
 #if CLI_ENABLE
   led_register_commands();
-  radio_register_commands();
   system_register_commands();
   test_register_commands();
   gloria_register_commands();
-  cli_register_commands();
+  radio_register_commands();
   develop_register_commands();
-  slwb_register_commands();
+  cli_register_commands();
 #endif /* CLI_ENABLE */
 
   cli_set_vt100_modes();

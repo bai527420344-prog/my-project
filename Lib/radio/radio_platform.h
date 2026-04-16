@@ -42,7 +42,10 @@
 #define RADIO_CLR_NSS_PIN()       RADIO_NSS_GPIO_Port->BRR = (uint32_t)RADIO_NSS_Pin
 
 #define RADIO_READ_BUSY_PIN()     (HAL_GPIO_ReadPin(RADIO_BUSY_GPIO_Port, RADIO_BUSY_Pin) == GPIO_PIN_SET)
-#define RADIO_READ_DIO1_PIN()     (HAL_GPIO_ReadPin(RADIO_DIO1_GPIO_Port, RADIO_DIO1_Pin) == GPIO_PIN_SET)
+/* Read true DIO1 state from PB4 (where SX1280 DIO1 physically connects).
+ * PB11 (RADIO_DIO1_Pin) requires a jumper from PB4 and is in AF mode,
+ * so reading PB11 is unreliable when the jumper is absent. */
+#define RADIO_READ_DIO1_PIN()     (HAL_GPIO_ReadPin(RADIO_DIO1_WAKEUP_GPIO_Port, RADIO_DIO1_WAKEUP_Pin) == GPIO_PIN_SET)
 
 
 #ifndef RADIO_TX_START_IND

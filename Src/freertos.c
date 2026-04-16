@@ -76,6 +76,9 @@ uint64_t last_reset       = 0;
 extern void vTask_pre(void* argument);
 extern void vTask_com(void* argument);
 extern void vTask_post(void* argument);
+#if CLI_ENABLE
+static void vTask_system_update(void* argument);
+#endif /* CLI_ENABLE */
 
 /* USER CODE END FunctionPrototypes */
 
@@ -210,6 +213,14 @@ void rtos_init(void)
                   NULL,
                   configMAX_PRIORITIES - 1,        /* highest priority task */
                   &xTaskHandle_com) != pdPASS)     { Error_Handler(); }
+#if CLI_ENABLE
+  if (xTaskCreate(vTask_system_update,
+                  "sysTask",
+                  configMINIMAL_STACK_SIZE,
+                  NULL,
+                  tskIDLE_PRIORITY,
+                  NULL) != pdPASS)                 { Error_Handler(); }
+#endif /* CLI_ENABLE */
 }
 
 uint32_t rtos_get_cpu_dc(void)
@@ -273,6 +284,19 @@ void rtos_check_stack_usage(void)
     }
   }
 }
+
+#if CLI_ENABLE
+static void vTask_system_update(void* argument)
+{
+  (void)argument;
+
+  for (;;)
+  {
+    system_update();
+    osDelay(1);
+  }
+}
+#endif /* CLI_ENABLE */
 
 /* USER CODE END Application */
 

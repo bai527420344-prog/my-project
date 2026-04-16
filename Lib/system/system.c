@@ -85,11 +85,16 @@ void system_init_platform(void)
 
 void system_init(void)
 {
+  static const char before_radio_init[] = "R2: before radio_init\r\n";
+  static const char after_radio_init[] = "R2: after radio_init\r\n";
+
   system_init_platform();
 
   /* init radio and protocols */
 #if RADIO_ENABLE
+  uart_tx_direct((char*)before_radio_init, sizeof(before_radio_init) - 1);
   radio_init();
+  uart_tx_direct((char*)after_radio_init, sizeof(after_radio_init) - 1);
 #endif
 #if CLI_ENABLE
   cli_init();

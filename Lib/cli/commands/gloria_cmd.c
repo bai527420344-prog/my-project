@@ -49,9 +49,14 @@ bool gloria_flood_to_be_printed = false;
 static void sync_callback();
 static void gloria_finish_callback();
 static void gloria_cont_callback();
+static void gloria_set_radio_log(bool enabled);
 
 static command_return_t gloria_rx_command_handler(command_execution_t execution);
 static command_return_t gloria_tx_command_handler(command_execution_t execution);
+
+static void gloria_set_radio_log(bool enabled) {
+  (void)enabled;
+}
 
 /*
  * General gloria parameters
@@ -564,9 +569,9 @@ static command_return_t gloria_rx_command_handler(command_execution_t execution)
   }
 
 #ifdef RADIO_LOG
-  set_radio_log(true);
+  gloria_set_radio_log(true);
 #else
-  set_radio_log(false);
+  gloria_set_radio_log(false);
 #endif
 
   flood.header.sync = sync;
@@ -695,13 +700,13 @@ static command_return_t gloria_tx_command_handler(command_execution_t execution)
   }
 
 #ifdef RADIO_LOG
-  set_radio_log(true);
+  gloria_set_radio_log(true);
 #else
-  set_radio_log(false);
+  gloria_set_radio_log(false);
 #endif
 
-  flood.header.type = GLORIA_MESSAGE;
-  flood.header.dst = dst;
+  flood.header.type = GLORIA_PKT_TYPE_DATA;
+  flood.header.ext.dst = dst;
   flood.header.sync = sync;
 
   memcpy(message, payload, payload_size);
@@ -741,7 +746,7 @@ static void gloria_cont_callback() {
     gloria_last_sync = flood.marker;
   }
   if (flood.msg_received) {
-    hs_timer_generic(flood.reconstructed_marker + gloria_calculate_flood_time(flood.payload_size, flood.modulation, flood.data_slots, flood.header.sync, flood.ack_mode) + 50*HS_TIMER_FREQUENCY_MS, &sync_callback);
+    hs_timer_generic_start(flood.reconstructed_marker + gloria_calculate_flood_time(flood.payload_size, flood.modulation, flood.data_slots, flood.header.sync, flood.ack_mode) + 50*HS_TIMER_FREQUENCY_MS, &sync_callback);
   }
 
   memcpy(print_message, message, GLORIA_MAX_PAYLOAD_LENGTH);
@@ -760,7 +765,7 @@ static void gloria_cont_callback() {
 
 static void gloria_finish_callback() {
   if (flood.msg_received) {
-    hs_timer_generic(flood.reconstructed_marker + gloria_calculate_flood_time(flood.payload_size, flood.modulation, flood.data_slots, flood.header.sync, flood.ack_mode) + 50*HS_TIMER_FREQUENCY_MS, &sync_callback);
+    hs_timer_generic_start(flood.reconstructed_marker + gloria_calculate_flood_time(flood.payload_size, flood.modulation, flood.data_slots, flood.header.sync, flood.ack_mode) + 50*HS_TIMER_FREQUENCY_MS, &sync_callback);
   }
   if (flood.initiator) {
     gloria_last_sync = flood.marker;
@@ -853,7 +858,7 @@ void gloria_print_flood(gloria_flood_t *print_flood) {
     goto end;
   }
 
-  if (cJSON_AddNumberToObject(flood_result, "msgs_sent", print_flood->max_retransmissions - print_flood->remaining_retransmissions) == NULL) {
+  if (cJSON_AddNumberToObject(flood_result, "msgs_sent", print_flood->max_retransmissions - print_flood->rem_retransmissions) == NULL) {
     goto end;
   }
 
@@ -871,7 +876,7 @@ void gloria_print_flood(gloria_flood_t *print_flood) {
 
   if (print_flood->msg_received) {
 
-    if (cJSON_AddNumberToObject(flood_result, "msg_size", print_flood->message_size) == NULL) {
+    if (cJSON_AddNumberToObject(flood_result, "msg_size", print_flood->header_size + print_flood->payload_size) == NULL) {
       goto end;
     }
 
@@ -893,7 +898,7 @@ void gloria_print_flood(gloria_flood_t *print_flood) {
       }
     }
 
-    if (print_flood->message_size > GLORIA_HEADER_LENGTH && cli_string_is_printable((char*) print_flood->payload, print_flood->message_size - GLORIA_HEADER_LENGTH))
+    if (print_flood->payload_size && cli_string_is_printable((char*) print_flood->payload, print_flood->payload_size))
     {
       if (cJSON_AddStringToObject(flood_result, "msg", (char*) print_flood->payload) == NULL) {
         goto end;
@@ -912,12 +917,14 @@ void gloria_print_flood(gloria_flood_t *print_flood) {
 //        goto end;
 //      }
 
-    if (cJSON_AddNumberToObject(flood_result, "msg_dst", print_flood->header.dst) == NULL) {
-      goto end;
-    }
+    if (print_flood->ack_mode) {
+      if (cJSON_AddNumberToObject(flood_result, "msg_dst", print_flood->header.ext.dst) == NULL) {
+        goto end;
+      }
 
-    if (cJSON_AddNumberToObject(flood_result, "msg_src", print_flood->header.src) == NULL) {
-      goto end;
+      if (cJSON_AddNumberToObject(flood_result, "msg_src", print_flood->header.ext.src) == NULL) {
+        goto end;
+      }
     }
 
     if (cJSON_AddNumberToObject(flood_result, "rssi", print_flood->rssi) == NULL) {

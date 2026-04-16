@@ -50,6 +50,15 @@ static uint32_t                   rx_successful_counter = 0;    // used to deter
 static dcstat_t                   radio_dc_rx = { 0 };
 static dcstat_t                   radio_dc_tx = { 0 };
 
+/* debug counters for DIO1 interrupt path tracing */
+static volatile uint32_t          dbg_execute_cnt = 0;
+static volatile uint32_t          dbg_irq_capture_cnt = 0;
+static volatile uint32_t          dbg_tx_done_cnt = 0;
+static volatile uint32_t          dbg_exti4_cnt = 0;     /* EXTI4 DIO1 hits (PB4 direct) */
+static volatile uint8_t           dbg_busy_before = 0;   /* BUSY pin right after NSS rise */
+static volatile uint8_t           dbg_busy_after  = 0;   /* BUSY pin after short wait */
+static volatile uint8_t           dbg_hw_status   = 0;   /* raw SX1280 status byte post-execute */
+
 /* function pointers */
 static radio_irq_cb_t     radio_irq_callback;
 static radio_rx_cb_t      radio_rx_callback      = 0;
@@ -87,16 +96,11 @@ static void radio_restore_config(bool reset)
     radio_events.RxSync     = radio_rx_sync_cb;
     radio_events.RxPreamble = radio_rx_preamble_cb;
 
-    // NOTE: Radio.Init() performs a hard reset of the SX1262 chip
+    // NOTE: Radio.Init() performs a hard reset of the SX1280 chip
     Radio.Init(&radio_events);
 
-    // sets the center frequency and performs image calibration if necessary -> can take up to 2ms (see datasheet p.56)
-    // NOTE: Image calibration is valid for the whole frequency band (863 - 870MHz), no recalibration necessary if another frequency within this band is selected later on
+    // Set the SX1280 center frequency in the 2.4 GHz ISM band.
     Radio.SetChannel(radio_bands[RADIO_DEFAULT_BAND].centerFrequency);
-
-  } else {
-    // make sure the radio is in STDBY_XOSC mode and set crystal trim values
-    SX126xSetXoscTrim();
   }
 
   // max LNA gain, increase current by ~2mA for around ~3dB in sensitivity
@@ -106,25 +110,225 @@ static void radio_restore_config(bool reset)
 }
 
 
+/* Send GetStatus (0xC0) ignoring BUSY, return raw status byte from MISO.
+ * A valid SX1280 returns 0x03..0x6F; a dead/disconnected chip returns 0xFF. */
+static uint8_t radio_raw_probe(void)
+{
+  uint8_t tx = 0xC0;  /* RADIO_GET_STATUS */
+  uint8_t rx = 0x00;
+  RADIO_CLR_NSS_PIN();
+  delay_us(1);
+  HAL_SPI_TransmitReceive(&RADIO_SPI, &tx, &rx, 1, 100);
+  tx = 0x00;  /* NOP */
+  HAL_SPI_TransmitReceive(&RADIO_SPI, &tx, &rx, 1, 100);
+  RADIO_SET_NSS_PIN();
+  delay_us(1);
+  return rx;
+}
+
+/* Send SetStandby(STDBY_RC) via raw SPI, ignoring BUSY entirely. */
+static void radio_raw_set_standby(void)
+{
+  uint8_t cmd  = 0x80;  /* RADIO_SET_STANDBY */
+  uint8_t data = 0x00;  /* STDBY_RC */
+  RADIO_CLR_NSS_PIN();
+  delay_us(1);
+  HAL_SPI_Transmit(&RADIO_SPI, &cmd, 1, 100);
+  HAL_SPI_Transmit(&RADIO_SPI, &data, 1, 100);
+  RADIO_SET_NSS_PIN();
+  delay_us(100);
+}
+
+/* ======================================================================
+ * SPI Hardware Diagnostic
+ *
+ * Tests each SPI line individually as GPIO to verify physical wiring
+ * between MCU and DLP-RFS1280.  Run with oscilloscope/logic analyzer
+ * probes on PA5 (SCK), PA6 (MISO), PA7 (MOSI), PA8 (NSS), PB3 (BUSY).
+ *
+ * Expected results if wiring is correct:
+ *   - SCK, MOSI, NSS: MCU toggles visible on scope at module pins
+ *   - MISO: read-back reflects what module drives (should NOT float)
+ *   - BUSY: reads LOW after SX1280 boot (~3.5 ms), or HIGH if stuck
+ * ====================================================================== */
+static void radio_spi_hw_diagnostic(void)
+{
+  GPIO_InitTypeDef gpio = {0};
+
+  LOG_INFO("=== SPI HW DIAGNOSTIC START ===");
+  LOG_INFO("pin states BEFORE test: NSS=%u BUSY=%u DIO1=%u NRESET(PA0)=%u",
+           RADIO_READ_NSS_PIN() ? 1 : 0,
+           RADIO_READ_BUSY_PIN() ? 1 : 0,
+           RADIO_READ_DIO1_PIN() ? 1 : 0,
+           HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0));
+
+  /* --- Step 1: Deinit SPI, reconfigure PA5/PA6/PA7 as GPIO --- */
+  HAL_SPI_DeInit(&RADIO_SPI);
+
+  /* PA5 (SCK) and PA7 (MOSI) → push-pull output */
+  gpio.Pin   = GPIO_PIN_5 | GPIO_PIN_7;
+  gpio.Mode  = GPIO_MODE_OUTPUT_PP;
+  gpio.Pull  = GPIO_NOPULL;
+  gpio.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &gpio);
+
+  /* PA6 (MISO) → input with pull-down */
+  gpio.Pin  = GPIO_PIN_6;
+  gpio.Mode = GPIO_MODE_INPUT;
+  gpio.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOA, &gpio);
+
+  /* --- Step 2: Toggle NSS (PA8) — verify NSS reaches module --- */
+  LOG_INFO("[NSS PA8] toggle 5x, 200ms each");
+  for (int i = 0; i < 5; i++) {
+    RADIO_CLR_NSS_PIN();            /* NSS LOW  */
+    HAL_Delay(200);
+    RADIO_SET_NSS_PIN();            /* NSS HIGH */
+    HAL_Delay(200);
+  }
+
+  /* --- Step 3: Toggle SCK (PA5) — verify SCK reaches module --- */
+  LOG_INFO("[SCK PA5] toggle 5x, 200ms each");
+  for (int i = 0; i < 5; i++) {
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+    HAL_Delay(200);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+    HAL_Delay(200);
+  }
+
+  /* --- Step 4: Toggle MOSI (PA7) — verify MOSI reaches module --- */
+  LOG_INFO("[MOSI PA7] toggle 5x, 200ms each");
+  for (int i = 0; i < 5; i++) {
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
+    HAL_Delay(200);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+    HAL_Delay(200);
+  }
+
+  /* --- Step 5: Read MISO (PA6) with NSS LOW vs HIGH --- */
+  RADIO_CLR_NSS_PIN();
+  HAL_Delay(10);
+  uint8_t miso_nss_low = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6);
+  RADIO_SET_NSS_PIN();
+  HAL_Delay(10);
+  uint8_t miso_nss_high = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6);
+  LOG_INFO("[MISO PA6] NSS_LOW→MISO=%u  NSS_HIGH→MISO=%u", miso_nss_low, miso_nss_high);
+  /* If both are 1: pull-up or module drives HIGH.
+   * If both are 0: pull-down wins, MISO not driven (disconnected?).
+   * If different: SX1280 is driving MISO — good sign! */
+
+  /* --- Step 6: Read BUSY (PB3) --- */
+  LOG_INFO("[BUSY PB3] = %u", RADIO_READ_BUSY_PIN() ? 1 : 0);
+
+  /* --- Step 7: Reinitialize SPI1 --- */
+  /* Reconfigure PA5/PA6/PA7 back to SPI1 AF5 */
+  gpio.Pin       = GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
+  gpio.Mode      = GPIO_MODE_AF_PP;
+  gpio.Pull      = GPIO_PULLDOWN;
+  gpio.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
+  gpio.Alternate = GPIO_AF5_SPI1;
+  HAL_GPIO_Init(GPIOA, &gpio);
+
+  /* Re-init SPI peripheral */
+  RADIO_SPI.Instance               = SPI1;
+  RADIO_SPI.Init.Mode              = SPI_MODE_MASTER;
+  RADIO_SPI.Init.Direction         = SPI_DIRECTION_2LINES;
+  RADIO_SPI.Init.DataSize          = SPI_DATASIZE_8BIT;
+  RADIO_SPI.Init.CLKPolarity       = SPI_POLARITY_LOW;
+  RADIO_SPI.Init.CLKPhase          = SPI_PHASE_1EDGE;
+  RADIO_SPI.Init.NSS               = SPI_NSS_SOFT;
+  RADIO_SPI.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+  RADIO_SPI.Init.FirstBit          = SPI_FIRSTBIT_MSB;
+  RADIO_SPI.Init.TIMode            = SPI_TIMODE_DISABLE;
+  RADIO_SPI.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
+  RADIO_SPI.Init.CRCPolynomial     = 7;
+  RADIO_SPI.Init.CRCLength         = SPI_CRC_LENGTH_DATASIZE;
+  RADIO_SPI.Init.NSSPMode          = SPI_NSS_PULSE_ENABLE;
+  if (HAL_SPI_Init(&RADIO_SPI) != HAL_OK) {
+    LOG_ERROR("SPI re-init failed!");
+  }
+
+  /* --- Step 8: SPI probe after reinit --- */
+  uint8_t probe = radio_raw_probe();
+  LOG_INFO("[SPI probe] raw=0x%02x busy=%u", probe, RADIO_READ_BUSY_PIN() ? 1 : 0);
+
+  LOG_INFO("=== SPI HW DIAGNOSTIC END ===");
+  LOG_INFO(">>> Now probe SCK/MOSI/MISO/NSS with scope during SPI traffic <<<");
+
+  /* Slow repeating SPI probes — easy to catch on oscilloscope */
+  for (int i = 0; i < 10; i++) {
+    HAL_Delay(2000);
+    probe = radio_raw_probe();
+    LOG_INFO("slow probe %d/10: raw=0x%02x busy=%u", i + 1, probe, RADIO_READ_BUSY_PIN() ? 1 : 0);
+  }
+}
+
 void radio_init(void)
 {
   if (RADIO_READ_DIO1_PIN()) {
-    LOG_WARNING("SX1262 DIO1 pin is high");
+    LOG_WARNING("radio DIO1 pin is high at init");
   }
+
+  /* Quick SX1280 liveness check */
+  {
+    uint8_t probe = radio_raw_probe();
+    LOG_INFO("SX1280 probe: raw=0x%02x busy=%u",
+             probe, RADIO_READ_BUSY_PIN() ? 1 : 0);
+
+    if (probe == 0xFF || probe == 0x00) {
+      LOG_WARNING("SX1280 not ready, retrying...");
+      radio_raw_set_standby();
+      HAL_Delay(100);
+      probe = radio_raw_probe();
+    }
+
+    if (probe != 0xFF && probe != 0x00) {
+      LOG_INFO("SX1280 alive (0x%02x)", probe);
+    } else {
+      LOG_ERROR("SX1280 not responding (probe=0x%02x) — power cycle the board", probe);
+    }
+  }
+
+  /* Wait for BUSY LOW before full init */
+  {
+    uint32_t wait = 0;
+    while (RADIO_READ_BUSY_PIN() && wait < 5000) {
+      HAL_Delay(10);
+      wait += 10;
+    }
+  }
+
   radio_restore_config(true);
 
   hs_timer_capture(&radio_irq_capture_cb);
   radio_set_irq_direct(true);
 
-  // note: RX/TX config has to be set by the user / application
-
-  // reset duty cycle counters
   dcstat_reset(&radio_dc_rx);
   dcstat_reset(&radio_dc_tx);
   RADIO_TX_STOP_IND();
   RADIO_RX_STOP_IND();
 
-  LOG_VERBOSE("initialized");
+  /* Verify SX1280 firmware version; retry if needed */
+  {
+    uint8_t fw[2] = { 0 };
+    SX1280ReadRegisters(0x0153, fw, 2);
+    LOG_INFO("radio FW=0x%02x%02x", fw[0], fw[1]);
+
+    for (int retry = 0; (fw[0] == 0xff && fw[1] == 0xff) && retry < 3; retry++) {
+      LOG_WARNING("FW=0xffff, retry %d/3 (waiting 2 s)...", retry + 1);
+      HAL_Delay(2000);
+      radio_restore_config(true);
+      fw[0] = fw[1] = 0;
+      SX1280ReadRegisters(0x0153, fw, 2);
+      LOG_INFO("retry %d: FW=0x%02x%02x busy=%u",
+               retry + 1, fw[0], fw[1], RADIO_READ_BUSY_PIN() ? 1 : 0);
+    }
+    if (fw[0] == 0xff && fw[1] == 0xff) {
+      LOG_ERROR("SX1280 init FAILED — power cycle the board");
+    }
+  }
+
+  LOG_INFO("initialized");
 }
 
 
@@ -183,7 +387,7 @@ void radio_set_irq_mode(lora_irq_mode_t mode)
     break;
   }
 
-  SX126xSetDioIrqParams(radio_irq_mask,
+  SX1280SetDioIrqParams(radio_irq_mask,
                         radio_irq_mask,
                         IRQ_RADIO_NONE,
                         IRQ_RADIO_NONE);
@@ -256,7 +460,7 @@ bool radio_wakeup(void)
       /* radio config is lost and must be restored */
       radio_restore_config(true);
     } else {
-      SX126xWakeup();
+      SX1280Wakeup();
       radio_restore_config(false);
     }
     radio_sleeping = RADIO_SLEEPING_FALSE;
@@ -273,9 +477,8 @@ void radio_standby(void)
     radio_wakeup();       // wake radio if it is still in sleep mode
   }
 
-  // temporarily force into RC mode (bug workaround -> 10us offset for TX start)
-  SX126xSetStandby( STDBY_RC );
-  SX126xSetXoscTrim();
+  // Temporarily force STDBY_RC before returning to the driver's standby path.
+  SX1280SetStandby( STDBY_RC );
   Radio.Standby();
 
   RADIO_RX_STOP_IND();
@@ -287,6 +490,7 @@ void radio_standby(void)
 
 void radio_irq_capture_cb(void)
 {
+  dbg_irq_capture_cnt++;
   if (radio_irq_callback) {
     radio_irq_callback();
   }
@@ -301,6 +505,19 @@ void radio_irq_capture_cb(void)
 #ifdef FLORA_DEBUG
   led_set_event_blink(0, 0);
 #endif
+}
+
+
+/* EXTI4 fallback: SX1280 DIO1 connects to PB4 on DLP-RFS1280 module.
+ * A jumper PB4→PB11 feeds TIM2_CH4 for hardware-captured timestamps,
+ * but we ALSO process DIO1 from EXTI4 so that TxDone/RxDone callbacks
+ * fire even if the jumper is missing or the TIM2 capture path fails.
+ * When both paths fire, the second invocation finds IRQ already cleared
+ * and returns safely (irqRegs == 0 in RadioIrqProcess). */
+void GPIO_Radio_Callback(void)
+{
+  dbg_exti4_cnt++;
+  hs_timer_trigger_capture_from_exti();
 }
 
 
@@ -324,7 +541,7 @@ void radio_timeout_cb(void)
 
 
 /**
- * SX1262 Callbacks
+ * SX1280 Callbacks
  */
 
 void radio_cad_done_cb(bool detected)
@@ -371,7 +588,7 @@ void radio_rx_done_cb(uint8_t* payload, uint16_t size,  int16_t rssi, int8_t snr
     radio_set_timeout_callback(NULL);
 
     radio_rx_cb_t tmp = radio_rx_callback;
-    if (SX126xGetOperatingMode() != MODE_RX_CONTINUOUS) {
+    if (SX1280GetOperatingMode() != MODE_RX_CONTINUOUS) {
       radio_rx_callback = 0;
     }
 
@@ -430,7 +647,7 @@ void radio_rx_error_cb(void)
 #endif /* RADIO_USE_HW_TIMEOUT */
 
   radio_timeout_cb_t tmp = radio_timeout_callback;
-  if (SX126xGetOperatingMode() != MODE_RX_CONTINUOUS) {
+  if (SX1280GetOperatingMode() != MODE_RX_CONTINUOUS) {
     radio_timeout_callback = 0;
   }
   if(tmp) {
@@ -484,6 +701,7 @@ void radio_rx_preamble_cb(void)
 
 void radio_tx_done_cb(void)
 {
+  dbg_tx_done_cnt++;
   RADIO_TX_STOP_IND();
   dcstat_stop(&radio_dc_tx);
 
@@ -516,8 +734,12 @@ void radio_tx_timeout_cb(void)
 
 static void radio_execute(void)
 {
+  dbg_execute_cnt++;
   RADIO_SET_NSS_PIN();
 
+  /* NOTE: Radio.GetStatus() only reads cached operating mode — no SPI access.
+   * Do NOT call SX1280GetStatus() or any SPI function here!
+   * This runs in TIM2 ISR context; SPI from ISR corrupts the bus. */
   switch (Radio.GetStatus()) {
     case RF_RX_RUNNING:
       RADIO_RX_START_IND();
@@ -531,6 +753,7 @@ static void radio_execute(void)
     default:
       break;
   }
+
   hs_timer_schedule_stop();
 }
 
@@ -646,9 +869,9 @@ void radio_set_rx_gain(bool rx_boost)
 {
   rx_boosted = rx_boost;
   if (rx_boosted) {
-    SX126xWriteRegister( REG_RX_GAIN, 0x96 ); // max LNA gain, increase current by ~2mA for around ~3dB in sensitivity
+    SX1280WriteRegister( REG_RX_GAIN, 0x96 ); // max LNA gain, increase current by ~2mA for around ~3dB in sensitivity
   } else {
-    SX126xWriteRegister( REG_RX_GAIN, 0x94 ); // default gain
+    SX1280WriteRegister( REG_RX_GAIN, 0x94 ); // default gain
   }
 }
 
@@ -728,6 +951,34 @@ uint32_t radio_get_prr(bool reset)
     rx_successful_counter = rx_started_counter = 0;
   }
   return prr;
+}
+
+
+void radio_dbg_get_counters(uint32_t* execute, uint32_t* irq_capture, uint32_t* tx_done)
+{
+  if (execute)     *execute     = dbg_execute_cnt;
+  if (irq_capture) *irq_capture = dbg_irq_capture_cnt;
+  if (tx_done)     *tx_done     = dbg_tx_done_cnt;
+}
+
+uint32_t radio_dbg_get_exti4_cnt(void)
+{
+  return dbg_exti4_cnt;
+}
+
+void radio_dbg_get_hw_state(uint8_t* busy_before, uint8_t* busy_after, uint8_t* hw_status)
+{
+  if (busy_before) *busy_before = dbg_busy_before;
+  if (busy_after)  *busy_after  = dbg_busy_after;
+  if (hw_status)   *hw_status   = dbg_hw_status;
+}
+
+void radio_dbg_reset_counters(void)
+{
+  dbg_execute_cnt     = 0;
+  dbg_irq_capture_cnt = 0;
+  dbg_tx_done_cnt     = 0;
+  dbg_exti4_cnt       = 0;
 }
 
 #endif /* RADIO_ENABLE */

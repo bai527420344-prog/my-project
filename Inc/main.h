@@ -119,8 +119,8 @@ void      rtos_check_stack_usage(void);
 #define UART_RX_GPIO_Port GPIOA
 #define RADIO_BUSY_Pin GPIO_PIN_3
 #define RADIO_BUSY_GPIO_Port GPIOB
-#define RADIO_ANT_SW_Pin GPIO_PIN_9
-#define RADIO_ANT_SW_GPIO_Port GPIOA
+#define RADIO_ANTSEL_Pin GPIO_PIN_9
+#define RADIO_ANTSEL_GPIO_Port GPIOA
 #define COM_PROG2_Pin GPIO_PIN_12
 #define COM_PROG2_GPIO_Port GPIOA
 #define COM_PROG_Pin GPIO_PIN_14

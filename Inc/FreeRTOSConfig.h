@@ -148,8 +148,8 @@ void PostSleepProcessing(uint32_t *ulExpectedIdleTime);
 allow the application writer to add additional code before and after the MCU is
 placed into the low power state respectively. */
 #if configUSE_TICKLESS_IDLE == 1
-#define configPRE_SLEEP_PROCESSING                        PreSleepProcessing
-#define configPOST_SLEEP_PROCESSING                       PostSleepProcessing
+#define configPRE_SLEEP_PROCESSING(x)                     PreSleepProcessing(&(x))
+#define configPOST_SLEEP_PROCESSING(x)                    PostSleepProcessing(&(x))
 #endif /* configUSE_TICKLESS_IDLE == 1 */
 
 #endif /* FREERTOS_CONFIG_H */

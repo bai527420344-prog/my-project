@@ -99,6 +99,9 @@ void gloria_start(bool is_initiator,
   arg_payload_ptr = payload;
   arg_sync_slot   = sync_slot;
 
+  // reset debug counters for this flood
+  radio_dbg_reset_counters();
+
   // initialize internal state
   flood_running         = true;  // keep ordering: first internal state variable to update here
   flood_completed       = false;
@@ -188,7 +191,20 @@ uint8_t gloria_stop(void)
 
     if (!flood_completed && flood.initiator) {
       // if this node is initiator, we can detect if flood did not terminate and warn the user
-      LOG_WARNING("Stopping glossy while flood sending is still ongoing!");
+      uint32_t dbg_exec, dbg_irq, dbg_txd;
+      uint8_t  dbg_bb, dbg_ba, dbg_hw;
+      radio_dbg_get_counters(&dbg_exec, &dbg_irq, &dbg_txd);
+      radio_dbg_get_hw_state(&dbg_bb, &dbg_ba, &dbg_hw);
+      uint8_t raw_status = SX1280GetStatus().Value;
+      LOG_WARNING("Stopping glossy! slot=%u las=%u rem=%u radio=%u raw=0x%02x mod=%u dio1=%u irq=0x%x nss=%u exec=%lu cap=%lu txd=%lu err=%lu bb=%u ba=%u hw=0x%02x now=0x%02x busy=%u",
+                  flood.header.slot_index, flood.last_active_slot, flood.rem_retransmissions,
+                  radio_get_status(), raw_status, flood.modulation,
+                  RADIO_READ_DIO1_PIN(), SX1280GetIrqStatus(),
+                  RADIO_READ_NSS_PIN() ? 1 : 0,
+                  dbg_exec, dbg_irq, dbg_txd,
+                  radio_get_error_count(),
+                  dbg_bb, dbg_ba, dbg_hw,
+                  raw_status, RADIO_READ_BUSY_PIN() ? 1 : 0);
     }
 
 #if GLORIA_INTERFACE_WAIT_TX_FINISHED

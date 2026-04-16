@@ -40,6 +40,7 @@
 void RadioSetGfskWhitening( uint8_t whitening );
 
 extern bool cli_interactive_mode;
+extern const struct Radio_s Radio;
 
 static command_return_t radio_random_number_command_handler(command_execution_t execution);
 static command_return_t radio_send_command_handler(command_execution_t execution);
@@ -63,7 +64,7 @@ static command_return_t radio_register_command_handler(command_execution_t execu
 static command_t radio_random_number_command = {
   .execution_ptr = &radio_random_number_command_handler,
   .name = "random",
-  .description = "Get random 32-bit integer from SX1262 RNG",
+  .description = "Get random 32-bit integer from the SX1280 RNG",
   .prompt = "",
   .parameters = NULL,
   .parameter_count = 0,
@@ -120,7 +121,7 @@ static parameter_t* radio_send_parameters[] = {
 static command_t radio_send_command = {
   .execution_ptr = &radio_send_command_handler,
   .name = "send",
-  .description = "Send a string via the SX1262's current configuration",
+  .description = "Send a string via the SX1280's current configuration",
   .prompt = "",
   .parameters = (parameter_t**) radio_send_parameters,
   .parameter_count = sizeof(radio_send_parameters) / sizeof(parameter_t*),
@@ -389,7 +390,7 @@ static parameter_t* radio_receive_parameters[] = {
 static command_t radio_receive_command = {
   .execution_ptr = &radio_receive_command_handler,
   .name = "receive",
-  .description = "Receive a packet via the SX1262's current configuration",
+  .description = "Receive a packet via the SX1280's current configuration",
   .prompt = "",
   .parameters = (parameter_t**) &radio_receive_parameters,
   .parameter_count = PARAM_COUNT(radio_receive_parameters),
@@ -554,7 +555,7 @@ static parameter_t* radio_cw_parameters[] = {
 static command_t radio_cw_command = {
   .execution_ptr = &radio_cw_command_handler,
   .name = "cw",
-  .description = "Set continuous-wave (CW) mode on SX126x. Be aware that without proper ",
+  .description = "Set continuous-wave (CW) mode on SX1280. Be aware that without proper ",
   .prompt = "",
   .parameters = (parameter_t**) radio_cw_parameters,
   .parameter_count = PARAM_COUNT(radio_cw_parameters),
@@ -646,7 +647,7 @@ static command_t radio_execute_command = {
 static command_t radio_preamble_command = {
   .execution_ptr = &radio_preamble_command_handler,
   .name = "preamble",
-  .description = "Set continuous preamble on SX1262",
+  .description = "Set continuous preamble on SX1280",
   .prompt = "",
   .parameters = NULL,
   .parameter_count = 0,
@@ -697,7 +698,7 @@ static parameter_t radio_config_parameter_band = {
 
 static parameter_t radio_config_parameter_power = {
     .name = "power",
-    .description = "Transmit power from -9 up to 22 dBm. If empty, configure radio in Rx mode, else in Tx mode.",
+    .description = "Transmit power from -18 up to 12 dBm. If empty, configure radio in Rx mode, else in Tx mode.",
 
     .type = CMD_PARAMETER_POWER,
 
@@ -718,9 +719,10 @@ static parameter_t radio_config_parameter_bandwidth = {
     .description =  "Bandwidth for modulation:\r\n\r\n"
             "\tLoRa:\r\n"
 
-            "\t\t0: 125kHz\r\n"
-            "\t\t1: 250kHz\r\n"
-            "\t\t2: 500kHz\r\n"
+            "\t\t0: 203.125kHz\r\n"
+            "\t\t1: 406.25kHz\r\n"
+            "\t\t2: 812.5kHz\r\n"
+            "\t\t3: 1625kHz\r\n"
 
 
             "\tFSK:\r\n"
@@ -851,7 +853,7 @@ static parameter_t* radio_config_parameters[] = {
 static command_t radio_config_command = {
   .execution_ptr = &radio_config_command_handler,
   .name = "config",
-  .description = "Set or get Rx & Tx configuration on SX1262 according to the band indexes defined in 'radio_constants.h'.",
+  .description = "Set or get Rx & Tx configuration on SX1280 according to the band indexes defined in 'radio_constants.h'.",
   .prompt = "",
   .parameters = (parameter_t**) &radio_config_parameters,
   .parameter_count = PARAM_COUNT(radio_config_parameters),
@@ -992,7 +994,7 @@ static command_t radio_whitening_command = {
 static command_t radio_reset_command = {
   .execution_ptr = &radio_reset_command_handler,
   .name = "reset",
-  .description = "Reset SX126x",
+  .description = "Reset SX1280",
   .prompt = "",
   .parameters = NULL,
   .parameter_count = 0,
@@ -1009,7 +1011,7 @@ static command_t radio_reset_command = {
 static command_t radio_status_command = {
   .execution_ptr = &radio_status_command_handler,
   .name = "status",
-  .description = "Get status on SX126x",
+  .description = "Get status on SX1280",
   .prompt = "",
   .parameters = NULL,
   .parameter_count = 0,
@@ -1131,7 +1133,7 @@ void radio_register_commands()
 
 
 command_return_t radio_random_number_command_handler(command_execution_t execution) {
-  int32_t random = SX126xGetRandom();
+  int32_t random = SX1280GetRandom();
   char buf[32];
   snprintf((char*) buf, 32, "%i", (int) random);
   cli_println(buf);
@@ -1178,7 +1180,7 @@ end:
     }
 
     if (command_get_parameter(&execution, 's')) {
-      radio_transmit_scheduled((uint8_t*) message, length, ?);   //FIXME
+      radio_transmit_scheduled((uint8_t*) message, length, hs_timer_get_current_timestamp());   //FIXME: use proper schedule timestamp
     }
     else {
 //      write_test_registers();
@@ -1190,18 +1192,18 @@ end:
   else {
     if (command_get_parameter(&execution, 'l')) {
       if (command_get_parameter(&execution, 's')) {
-        SX126xSetTxWithoutExecute(0);
+        SX1280SetTx(0, false);
         if (cli_interactive_mode) {
           cli_log_inline("Operation is scheduled.", CLI_LOG_LEVEL_DEBUG, true, true, true);
         }
       }
       else {
-        SX126xSetTx(0);
+        SX1280SetTx(0, true);
       }
     }
     else {
       if (command_get_parameter(&execution, 's')) {
-        radio_transmit_scheduled(NULL, 0, ?);  //FIXME
+        radio_transmit_scheduled(NULL, 0, hs_timer_get_current_timestamp());  //FIXME: use proper schedule timestamp
         if (cli_interactive_mode) {
           cli_log_inline("Operation is scheduled.", CLI_LOG_LEVEL_DEBUG, true, true, true);
         }
@@ -1287,7 +1289,7 @@ command_return_t radio_receive_command_handler(command_execution_t execution) {
       }
     }
     else if (command_get_parameter(&execution, 's')) {
-      radio_receive_scheduled(?, timeout);   //FIXME
+      radio_receive_scheduled(hs_timer_get_current_timestamp(), timeout);   //FIXME: use proper schedule timestamp
       if (cli_interactive_mode) {
         cli_log_inline("Listening for one message until radio is set into another mode (e.g. standby, sleep or Tx) or MCU timeout gets triggered after execution", CLI_LOG_LEVEL_DEBUG, true, true, true);
         cli_log_inline("Operation is scheduled.", CLI_LOG_LEVEL_DEBUG, true, true, true);
@@ -1376,7 +1378,7 @@ command_return_t radio_payload_command_handler(command_execution_t execution) {
       return CMD_RET_SUCCESS;
     }
     else {
-      radio_set_payload((uint8_t*) data->value, 0, (uint8_t) strlen(data->value) + 1);
+      radio_set_payload((uint8_t*) data->value, (uint8_t) strlen(data->value) + 1);
       return CMD_RET_SUCCESS;
     }
   }
@@ -1384,15 +1386,14 @@ command_return_t radio_payload_command_handler(command_execution_t execution) {
 
 
 command_return_t radio_cad_command_handler(command_execution_t execution) {
+  uint8_t mod = 0;  // default modulation index
   if(execution.value_count >= 1) {
     radio_set_irq_mode(IRQ_MODE_CAD_RX);
-    radio_set_cad_params(true, true);
-    radio_set_cad();
+    radio_set_cad(mod, true, true);
   }
   else {
     radio_set_irq_mode(IRQ_MODE_CAD);
-    radio_set_cad_params(false, false);
-    radio_set_cad();  // FIXME
+    radio_set_cad(mod, false, false);
   }
 
   return CMD_RET_PENDING;
@@ -1400,10 +1401,10 @@ command_return_t radio_cad_command_handler(command_execution_t execution) {
 
 
 command_return_t radio_free_command_handler(command_execution_t execution) {
-  bool free = Radio.IsChannelFree(MODEM_LORA, 869400000, -20, 100);   // FIXME
+  bool free = Radio.IsChannelFree(MODEM_LORA, radio_bands[RADIO_DEFAULT_BAND].centerFrequency, -20, 100);
 
   /*
-  int8_t rssi = SX126xGetRssiInst();
+  int8_t rssi = SX1280GetRssiInst();
   char buf[64];
   snprintf(buf, sizeof(buf), "CAD RSSI: %d", rssi);
   DBG(buf, CLI_MSG_INFO);
@@ -1509,7 +1510,7 @@ command_return_t radio_cw_command_handler(command_execution_t execution) {
     cli_println((char*) buf);
 
     if (duration < 0) {
-      Radio.SetTxContinuousWave(frequency, power, 0);  // FIXME
+      Radio.SetTxContinuousWave(frequency, power);
     }
     else {
       uint64_t endTs = 0;
@@ -1517,14 +1518,14 @@ command_return_t radio_cw_command_handler(command_execution_t execution) {
 
       // seed random generator
       if (random != 0) {
-        srand(SX126xGetRandom());
+        srand(SX1280GetRandom());
       }
 
       uint64_t startTs = hs_timer_get_current_timestamp(); // reference time for all cw pulses generated by the cw command
 
       for (int i=0; i<repetitions; i++) {
           // start cw pulse
-          Radio.SetTxContinuousWave(frequency, power, 0);  // FIXME
+          Radio.SetTxContinuousWave(frequency, power);
 
           if (duration != 0) {
             // delay for Tx (busy wait)
@@ -1767,11 +1768,11 @@ command_return_t radio_reset_command_handler(command_execution_t execution) {
 command_return_t radio_status_command_handler(command_execution_t execution) {
   PacketStatus_t pkt_status;
 
-  SX126xGetPacketStatus(&pkt_status);
+  SX1280GetPacketStatus(&pkt_status);
 
   char buf[255] = "Operating_Mode: ";
 
-  RadioOperatingModes_t operating_mode = SX126xGetOperatingMode();
+  RadioOperatingModes_t operating_mode = SX1280GetOperatingMode();
   switch (operating_mode) {
     case MODE_SLEEP:
       strcat(buf,"sleep");
@@ -1845,7 +1846,7 @@ command_return_t radio_status_command_handler(command_execution_t execution) {
 
   cli_log_inline(buf, CLI_LOG_LEVEL_DEFAULT, true, false, true);
 
-  RadioStatus_t status = SX126xGetStatus();
+  RadioStatus_t status = SX1280GetStatus();
 
   snprintf(buf,sizeof(buf),
      "Radio Status:\r\n"
@@ -1858,17 +1859,16 @@ command_return_t radio_status_command_handler(command_execution_t execution) {
   );
   cli_log_inline(buf, CLI_LOG_LEVEL_DEFAULT, true, false, true);
 
-  uint16_t irq_status = SX126xGetIrqStatus();
+  uint16_t irq_status = SX1280GetIrqStatus();
   snprintf(buf,sizeof(buf),
      "IRQ_Status: %#06x",
      irq_status
   );
   cli_log_inline(buf, CLI_LOG_LEVEL_DEFAULT, true, false, true);
 
-  RadioError_t errors = SX126xGetDeviceErrors();
   snprintf(buf,sizeof(buf),
-     "Errors: %#06x",
-     errors.Value
+     "Errors: %#06x (unsupported on SX1280, fixed to zero)",
+     0
   );
 
   cli_log_inline(buf, CLI_LOG_LEVEL_DEFAULT, true, true, true);
@@ -1884,10 +1884,10 @@ command_return_t radio_register_command_handler(command_execution_t execution) {
 
     if (count == 2) {
       uint8_t value = strtol(command_get_unnamed_parameter_at_index(&execution, 1)->value, NULL, 10);
-      SX126xWriteRegister(address, value);
+      SX1280WriteRegister(address, value);
     }
     else {
-      uint8_t value = SX126xReadRegister(address);
+      uint8_t value = SX1280ReadRegister(address);
       char buf[24];
       snprintf(buf, sizeof(buf), "value: %#04x", value);
       cli_log_inline(buf, CLI_LOG_LEVEL_DEFAULT, true, true, true);
@@ -1897,7 +1897,7 @@ command_return_t radio_register_command_handler(command_execution_t execution) {
     int i;
     for (i = 0; i < UINT16_MAX; i += 16) {
       uint8_t value_buf[16];
-      SX126xReadRegisters(i, value_buf, 16);
+      SX1280ReadRegisters(i, value_buf, 16);
 
       char buf[128] = "";
 

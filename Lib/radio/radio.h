@@ -80,7 +80,7 @@ typedef void (* radio_tx_cb_t)(void);
 
 
 /* include all required radio drivers */
-#include "radio/semtech/sx126x-radio.h"
+#include "radio/semtech/sx1280-radio.h"
 #include "radio/radio_constants.h"
 #include "radio/radio_helpers.h"
 #include "radio/radio_platform.h"
@@ -123,5 +123,10 @@ uint64_t  radio_get_tx_time(void);
 void      radio_dc_counter_reset(void);
 uint32_t  radio_get_prr(bool reset);      /* returns the packet reception rate in [% * 10^2] */
 
+/* debug: DIO1 interrupt path counters */
+void      radio_dbg_get_counters(uint32_t* execute, uint32_t* irq_capture, uint32_t* tx_done);
+uint32_t  radio_dbg_get_exti4_cnt(void);
+void      radio_dbg_get_hw_state(uint8_t* busy_before, uint8_t* busy_after, uint8_t* hw_status);
+void      radio_dbg_reset_counters(void);
 
 #endif /* RADIO_RADIO_H_ */

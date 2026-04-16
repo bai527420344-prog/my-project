@@ -100,8 +100,27 @@ static void error_blink_forever(void)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+  static const uint8_t r2_main_alive[] = "R2: main alive\r\n";
+  static const uint8_t r2_after_system_init[] = "R2: after system_init\r\n";
+
   HAL_Init();
   SystemClock_Config();
+
+  /* Disable DBGMCU trace output on PB3 (JTDO/TRACESWO).
+   * The ST-LINK debugger may have set TRACE_IOEN during a previous
+   * flash/debug session, causing the CoreSight TPIU to drive PB3.
+   * This bit survives soft-resets; clearing it releases PB3 for use
+   * as RADIO_BUSY.  Must happen BEFORE MX_GPIO_Init(). */
+  {
+    uint32_t cr_before = DBGMCU->CR;
+    DBGMCU->CR &= ~DBGMCU_CR_TRACE_IOEN;
+    /* Also force PB3 out of AF mode at register level, in case
+     * MX_GPIO_Init hasn't run yet (after reset PB3 = AF0/JTDO). */
+    GPIOB->MODER &= ~(0x3U << (3 * 2));   /* PB3 MODER = 00 (input) */
+    GPIOB->AFR[0] &= ~(0xFU << (3 * 4));  /* PB3 AFRL  = 0          */
+    (void)cr_before;  /* available for printf debugging if needed */
+  }
+
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_SPI1_Init();
@@ -110,7 +129,11 @@ int main(void)
   MX_TIM16_Init();
   MX_LPTIM1_Init();
 
+  HAL_UART_Transmit(&huart2, (uint8_t*)r2_main_alive, sizeof(r2_main_alive) - 1, 100);
+
   system_init();
+
+  HAL_UART_Transmit(&huart2, (uint8_t*)r2_after_system_init, sizeof(r2_after_system_init) - 1, 100);
 
   if (HAL_TIM_Base_Start_IT(&htim2) != HAL_OK) {
     Error_Handler();
@@ -472,7 +495,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(RADIO_NRESET_GPIO_Port, RADIO_NRESET_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(RADIO_ANT_SW_GPIO_Port, RADIO_ANT_SW_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(RADIO_ANTSEL_GPIO_Port, RADIO_ANTSEL_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(COM_PROG2_GPIO_Port, COM_PROG2_Pin, GPIO_PIN_RESET);
@@ -524,7 +547,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : RADIO_DIO1_WAKEUP_Pin (PB4) - DIO1 copy via jumper PB11->PB4 */
+  /*Configure GPIO pin : RADIO_DIO1_WAKEUP_Pin (PB4) - DIO1 copy via PB4-PB11 jumper wire */
   GPIO_InitStruct.Pin = RADIO_DIO1_WAKEUP_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -537,12 +560,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(RADIO_NRESET_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : RADIO_ANT_SW_Pin (PA9) */
-  GPIO_InitStruct.Pin = RADIO_ANT_SW_Pin;
+  /*Configure GPIO pin : RADIO_ANTSEL_Pin (PA9) */
+  GPIO_InitStruct.Pin = RADIO_ANTSEL_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(RADIO_ANT_SW_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(RADIO_ANTSEL_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : COM_PROG2_Pin (PA12, RX indicator) and COM_GPIO2_Pin (PA11, TX indicator) */
   GPIO_InitStruct.Pin = COM_PROG2_Pin|COM_GPIO2_Pin;

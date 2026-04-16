@@ -55,7 +55,7 @@ static const lwb_syncstate_t next_state[NUM_OF_SYNC_EVENTS][NUM_OF_SYNC_STATES] 
   { SYNCED,    SYNCED,   SYNCED,    SYNCED    }, /* schedule rcvd   */
   { BOOTSTRAP, UNSYNCED, UNSYNCED2, BOOTSTRAP }  /* schedule missed */
 };
-static const char* lwb_syncstate_to_string[NUM_OF_SYNC_STATES] = {
+static const char* lwb_syncstate_to_string[NUM_OF_SYNC_STATES] __attribute__((unused)) = {
   "BOOTSTRAP", "SYN", "USYN", "USYN2"
 };
 
@@ -517,6 +517,7 @@ static void lwb_receive_packet(lwb_time_t slot_start, uint32_t slot_length, uint
   gloria_stop();
 
   uint8_t packet_len = gloria_get_payload_len();
+  (void)packet_len;
   if (gloria_get_rx_cnt() && LWB_IS_PKT_HEADER_VALID(&packet)) {                   /* data received? */
     /* check whether to keep this packet */
     bool keep_packet = LWB_IS_SINK() || LWB_RCV_PKT_FILTER();
@@ -733,6 +734,15 @@ int32_t lwb_calc_drift_comp(uint32_t elapsed_ticks)
 
 static void lwb_print_stats(void)
 {
+  /* DIO1 interrupt path diagnostic (per-round) */
+  {
+    uint32_t exec_cnt, irq_cnt, txd_cnt;
+    radio_dbg_get_counters(&exec_cnt, &irq_cnt, &txd_cnt);
+    LOG_INFO("DIO1: exec=%lu irq=%lu txd=%lu exti4=%lu",
+             exec_cnt, irq_cnt, txd_cnt, radio_dbg_get_exti4_cnt());
+    radio_dbg_reset_counters();
+  }
+
   if (is_host) {
     LOG_VERBOSE("%llu | T: %lus, slots: %u, rx/tx/drop/rx_all/tx_all: %lu/%lu/%lu/%lu/%lu, rssi: %ddBm",
                 network_time,
