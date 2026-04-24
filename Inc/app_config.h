@@ -71,12 +71,12 @@
 #define RECEIVE_QUEUE_SIZE              LWB_MAX_DATA_SLOTS              /* #messages */
 
 /* Gloria config */
-#define GLORIA_INTERFACE_POWER          1    /* transmit power in dBm (max 12 for SX1280); keep non-zero init for binary patching!; config will be overwritten by binary patching! */
+#define GLORIA_INTERFACE_POWER          10   /* transmit power in dBm (max 12 for SX1280); keep non-zero init for binary patching!; config will be overwritten by binary patching! */
 #if FLOCKLAB
-  #define GLORIA_INTERFACE_MODULATION   10   /* DIAGNOSTIC: 10 = GFSK 250k (same timing as old SX1262 project) */
+  #define GLORIA_INTERFACE_MODULATION   7    /* 7 = LoRa SF5 (validated working on two-node LWB 2026-04-24; GFSK 250k index 10 currently broken on SX1280 port — see .ai/PORTING_REPORT.md R6-4) */
   #define GLORIA_INTERFACE_RF_BAND      24   /* 2450 MHz (see table in radio_constants.c for options); config will be overwritten by binary patching! */
 #else
-  #define GLORIA_INTERFACE_MODULATION   10   /* DIAGNOSTIC: 10 = GFSK 250k (same timing as old SX1262 project) */
+  #define GLORIA_INTERFACE_MODULATION   7    /* 7 = LoRa SF5 (validated working on two-node LWB 2026-04-24; GFSK 250k index 10 currently broken on SX1280 port — see .ai/PORTING_REPORT.md R6-4) */
   #define GLORIA_INTERFACE_RF_BAND      24   /* 2450 MHz (see table in radio_constants.c for options); config will be overwritten by binary patching! */
 #endif /* FLOCKLAB */
 
