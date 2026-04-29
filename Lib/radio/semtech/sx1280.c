@@ -470,10 +470,69 @@ void SX1280SetTxParams( int8_t power, RadioRampTimes_t rampTime )
     SX1280WriteCommand( RADIO_SET_TXPARAMS, buf, 2 );
 }
 
+/* SX1280 GFSK SetModulationParams / SetPacketParams use a 3-byte / 7-byte
+ * lookup-encoded format, NOT the SX1262-style raw register values used by the
+ * baseline driver. The lookup tables below mirror the official Semtech SX1280
+ * driver (SWSD001). LoRa code paths are unchanged. */
+typedef struct { uint32_t bitrate; uint32_t bandwidth; uint8_t param; } SX1280GfskBrBw_t;
+static const SX1280GfskBrBw_t SX1280GfskBrBw[] = {
+    { 125000,  300000,  0xEF }, { 250000,  300000,  0xC7 }, { 250000,  600000,  0xCE },
+    { 400000,  600000,  0xAA }, { 500000,  600000,  0x86 }, { 400000,  1200000, 0xB1 },
+    { 500000,  1200000, 0x8D }, { 800000,  1200000, 0x69 }, { 1000000, 1200000, 0x45 },
+    { 800000,  2400000, 0x70 }, { 1000000, 2400000, 0x4C }, { 1600000, 2400000, 0x28 },
+    { 2000000, 2400000, 0x04 },
+};
+typedef struct { uint8_t numerator; uint8_t param; } SX1280GfskModInd_t;
+static const SX1280GfskModInd_t SX1280GfskModInd[] = {
+    { 7,0x00 },{ 10,0x01 },{ 15,0x02 },{ 20,0x03 },{ 25,0x04 },{ 30,0x05 },{ 35,0x06 },{ 40,0x07 },
+    { 45,0x08 },{ 50,0x09 },{ 55,0x0A },{ 60,0x0B },{ 65,0x0C },{ 70,0x0D },{ 75,0x0E },{ 80,0x0F },
+};
+static uint8_t SX1280GetGfskBrBwParam( uint32_t bitrate, uint32_t bandwidth ) {
+    for( uint8_t i = 0; i < sizeof(SX1280GfskBrBw)/sizeof(SX1280GfskBrBw[0]); i++ ) {
+        if( bitrate <= SX1280GfskBrBw[i].bitrate && bandwidth <= SX1280GfskBrBw[i].bandwidth ) return SX1280GfskBrBw[i].param;
+    }
+    return SX1280GfskBrBw[sizeof(SX1280GfskBrBw)/sizeof(SX1280GfskBrBw[0]) - 1].param;
+}
+static uint8_t SX1280GetGfskModIndParam( uint32_t bitrate, uint32_t fdev ) {
+    if( bitrate == 0 ) return SX1280GfskModInd[0].param;
+    for( int8_t i = (sizeof(SX1280GfskModInd)/sizeof(SX1280GfskModInd[0])) - 1; i >= 0; i-- ) {
+        if( ( bitrate * SX1280GfskModInd[i].numerator ) <= ( 40U * fdev ) ) return SX1280GfskModInd[i].param;
+    }
+    return SX1280GfskModInd[0].param;
+}
+static uint8_t SX1280GetGfskPulseShapeParam( RadioModShapings_t shaping ) {
+    switch( shaping ) {
+    case MOD_SHAPING_G_BT_05: return 0x20;
+    case MOD_SHAPING_G_BT_1:  return 0x10;
+    case MOD_SHAPING_OFF: default: return 0x00;
+    }
+}
+static uint8_t SX1280GetGfskPreambleLenParam( uint16_t preambleLenBits ) {
+    if( preambleLenBits <= 4 ) return 0x00;
+    if( preambleLenBits >= 32 ) return 0x70;
+    return ( uint8_t )( ( ( preambleLenBits + 3 ) / 4 - 1 ) << 4 );
+}
+static uint8_t SX1280GetGfskSyncWordLenParam( uint8_t syncWordLenBitsOrBytes ) {
+    /* Caller passes bits (bytes<<3); for 5-byte sync (40 bits) returns 0x08 (correct).
+     * If caller is later changed to pass bytes, this still works for our config. */
+    if( syncWordLenBitsOrBytes <= 1 ) return 0x00;
+    if( syncWordLenBitsOrBytes >= 5 ) return 0x08;
+    return ( uint8_t )( ( syncWordLenBitsOrBytes - 1 ) << 1 );
+}
+static uint8_t SX1280GetGfskCrcParam( RadioCrcTypes_t crc ) {
+    switch( crc ) {
+    case RADIO_CRC_1_BYTES: return 0x10;
+    case RADIO_CRC_2_BYTES: case RADIO_CRC_2_BYTES_IBM: case RADIO_CRC_2_BYTES_CCIT: return 0x20;
+    case RADIO_CRC_OFF: default: return 0x00;
+    }
+}
+static uint8_t SX1280GetGfskWhiteningParam( RadioDcFree_t dcFree ) {
+    return ( dcFree == RADIO_DC_FREEWHITENING ) ? 0x00 : 0x08;
+}
+
 void SX1280SetModulationParams( ModulationParams_t *modulationParams )
 {
     uint8_t n;
-    uint32_t tempVal = 0;
     uint8_t buf[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
     // Check if required configuration corresponds to the stored packet type
@@ -486,17 +545,13 @@ void SX1280SetModulationParams( ModulationParams_t *modulationParams )
     switch( modulationParams->PacketType )
     {
     case PACKET_TYPE_GFSK:
-        n = 8;
-        tempVal = ( uint32_t )( 32 * SX1280_XTAL_FREQ / modulationParams->Params.Gfsk.BitRate );
-        buf[0] = ( tempVal >> 16 ) & 0xFF;
-        buf[1] = ( tempVal >> 8 ) & 0xFF;
-        buf[2] = tempVal & 0xFF;
-        buf[3] = modulationParams->Params.Gfsk.ModulationShaping;
-        buf[4] = modulationParams->Params.Gfsk.Bandwidth;
-        tempVal = SX1280ConvertFreqInHzToPllStep( modulationParams->Params.Gfsk.Fdev );
-        buf[5] = ( tempVal >> 16 ) & 0xFF;
-        buf[6] = ( tempVal >> 8 ) & 0xFF;
-        buf[7] = ( tempVal& 0xFF );
+        /* SX1280 lookup-encoded GFSK modulation params (3 bytes). */
+        n = 3;
+        buf[0] = SX1280GetGfskBrBwParam( modulationParams->Params.Gfsk.BitRate,
+                                         modulationParams->Params.Gfsk.Bandwidth );
+        buf[1] = SX1280GetGfskModIndParam( modulationParams->Params.Gfsk.BitRate,
+                                           modulationParams->Params.Gfsk.Fdev );
+        buf[2] = SX1280GetGfskPulseShapeParam( modulationParams->Params.Gfsk.ModulationShaping );
         SX1280WriteCommand( RADIO_SET_MODULATIONPARAMS, buf, n );
         break;
     case PACKET_TYPE_LORA:
@@ -517,7 +572,6 @@ void SX1280SetModulationParams( ModulationParams_t *modulationParams )
 void SX1280SetPacketParams( PacketParams_t *packetParams )
 {
     uint8_t n;
-    uint8_t crcVal = 0;
     uint8_t buf[9] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
     // Check if required configuration corresponds to the stored packet type
@@ -530,32 +584,27 @@ void SX1280SetPacketParams( PacketParams_t *packetParams )
     switch( packetParams->PacketType )
     {
     case PACKET_TYPE_GFSK:
+        /* SX1280 lookup-encoded GFSK packet params (7 bytes). CRC seed/polynomial
+         * are still set explicitly here for IBM/CCITT modes (chip uses register-
+         * driven CRC seed when RADIO_CRC_2_BYTES_* is selected). */
         if( packetParams->Params.Gfsk.CrcLength == RADIO_CRC_2_BYTES_IBM )
         {
             SX1280SetCrcSeed( CRC_IBM_SEED );
             SX1280SetCrcPolynomial( CRC_POLYNOMIAL_IBM );
-            crcVal = RADIO_CRC_2_BYTES;
         }
         else if( packetParams->Params.Gfsk.CrcLength == RADIO_CRC_2_BYTES_CCIT )
         {
             SX1280SetCrcSeed( CRC_CCITT_SEED );
             SX1280SetCrcPolynomial( CRC_POLYNOMIAL_CCITT );
-            crcVal = RADIO_CRC_2_BYTES_INV;
         }
-        else
-        {
-            crcVal = packetParams->Params.Gfsk.CrcLength;
-        }
-        n = 9;
-        buf[0] = ( packetParams->Params.Gfsk.PreambleLength >> 8 ) & 0xFF;
-        buf[1] = packetParams->Params.Gfsk.PreambleLength;
-        buf[2] = packetParams->Params.Gfsk.PreambleMinDetect;
-        buf[3] = ( packetParams->Params.Gfsk.SyncWordLength /*<< 3*/ ); // convert from byte to bit
-        buf[4] = packetParams->Params.Gfsk.AddrComp;
-        buf[5] = packetParams->Params.Gfsk.HeaderType;
-        buf[6] = packetParams->Params.Gfsk.PayloadLength;
-        buf[7] = crcVal;
-        buf[8] = packetParams->Params.Gfsk.DcFree;
+        n = 7;
+        buf[0] = SX1280GetGfskPreambleLenParam( packetParams->Params.Gfsk.PreambleLength );
+        buf[1] = SX1280GetGfskSyncWordLenParam( packetParams->Params.Gfsk.SyncWordLength );
+        buf[2] = packetParams->Params.Gfsk.AddrComp;
+        buf[3] = packetParams->Params.Gfsk.HeaderType;
+        buf[4] = packetParams->Params.Gfsk.PayloadLength;
+        buf[5] = SX1280GetGfskCrcParam( packetParams->Params.Gfsk.CrcLength );
+        buf[6] = SX1280GetGfskWhiteningParam( packetParams->Params.Gfsk.DcFree );
         break;
     case PACKET_TYPE_LORA:
         n = 5;

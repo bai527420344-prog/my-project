@@ -105,11 +105,11 @@ const radio_config_t radio_modulations[RADIO_NUM_MODULATIONS] =
         .fdev = 10000,
         .preambleLen = 2,
     },
-    {   // 10: GFSK 250kbit/s
+    {   // 10: GFSK 250kbit/s — fdev=125k → mod_idx=1.0 (matches SX1280 dev kit demo; baseline 23.5k = mod_idx 0.188 below SX1280 min 0.35)
         .modem = MODEM_FSK,
-        .bandwidth = 312000,
+        .bandwidth = 600000,
         .datarate = 250000,
-        .fdev = 23500,
+        .fdev = 125000,
         .preambleLen = 4,
     },
 };
