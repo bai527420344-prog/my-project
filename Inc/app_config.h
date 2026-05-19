@@ -73,24 +73,39 @@
 /* Gloria config */
 #define GLORIA_INTERFACE_POWER          10   /* transmit power in dBm (max 12 for SX1280); keep non-zero init for binary patching!; config will be overwritten by binary patching! */
 #if FLOCKLAB
-  #define GLORIA_INTERFACE_MODULATION   7    /* 7 = LoRa SF5 (validated working on two-node LWB; GFSK 250k still broken on DLP-RFS1280+older silicon despite datasheet-correct config) */
+  #define GLORIA_INTERFACE_MODULATION   8    /* 8 = GFSK 125kbit/s; needs <1cm distance on DLP-RFS1280 due to weak RF chain */
   #define GLORIA_INTERFACE_RF_BAND      24   /* 2450 MHz (see table in radio_constants.c for options); config will be overwritten by binary patching! */
 #else
-  #define GLORIA_INTERFACE_MODULATION   7    /* 7 = LoRa SF5 (validated working on two-node LWB; GFSK 250k still broken on DLP-RFS1280+older silicon despite datasheet-correct config) */
+  #define GLORIA_INTERFACE_MODULATION   8    /* 8 = GFSK 125kbit/s; needs <1cm distance on DLP-RFS1280 due to weak RF chain */
   #define GLORIA_INTERFACE_RF_BAND      24   /* 2450 MHz (see table in radio_constants.c for options); config will be overwritten by binary patching! */
 #endif /* FLOCKLAB */
+
+/* When set to 1, task_com skips lwb_init / lwb_start so that radio is left
+ * idle after radio_init. Only the CLI is active. Used for raw GFSK hardware
+ * testing via 'gfsk_test ...' commands without LWB interference. */
+#define GFSK_TEST_MODE                  0
 
 /* LWB config */
 #define LWB_ENABLE                      1
 #define LWB_NETWORK_ID                  0x4444
 #define LWB_MIN_NODE_ID                 1
 #define LWB_MAX_NODE_ID                 32
-#define LWB_N_TX                        2
+/* Weak DLP-RFS1280 RF chain needs more redundancy for GFSK to close link.
+ * LoRa modes (modulation 0-7) keep the original n_tx=2 / payload=80. */
+#if GLORIA_INTERFACE_MODULATION >= 8
+  #define LWB_N_TX                      4
+#else
+  #define LWB_N_TX                      2
+#endif
 #define LWB_NUM_HOPS                    6
 #define LWB_T_GAP                       LWB_MS_TO_TICKS(10)
 #define LWB_SCHED_PERIOD                15      // same as old eval_l476 project
 #define LWB_CONT_USE_HSTIMER            1
-#define LWB_MAX_PAYLOAD_LEN             80
+#if GLORIA_INTERFACE_MODULATION >= 8
+  #define LWB_MAX_PAYLOAD_LEN           16   /* GFSK: small packets for weak link */
+#else
+  #define LWB_MAX_PAYLOAD_LEN           80   /* LoRa: normal LWB sizes */
+#endif
 #define LWB_MAX_DATA_SLOTS              LWB_MAX_NUM_NODES
 //#define LWB_DATA_ACK                    1
 #define LWB_ON_WAKEUP()                 lpm_update_opmode(OP_MODE_EVT_WAKEUP)

@@ -38,6 +38,7 @@
 #include "cli/commands/slwb_cmd.h"
 #include "cli/commands/system_cmd.h"
 #include "cli/commands/radio_cmd.h"
+#include "cli/commands/gfsk_test_cmd.h"
 #include "cli/commands/led_cmd.h"
 #include "cli/commands/cli_cmd.h"
 #include "cli/commands/test_cmd.h"

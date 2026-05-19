@@ -512,12 +512,17 @@ static uint8_t SX1280GetGfskPreambleLenParam( uint16_t preambleLenBits ) {
     if( preambleLenBits >= 32 ) return 0x70;
     return ( uint8_t )( ( ( preambleLenBits + 3 ) / 4 - 1 ) << 4 );
 }
-static uint8_t SX1280GetGfskSyncWordLenParam( uint8_t syncWordLenBitsOrBytes ) {
-    /* Caller passes bits (bytes<<3); for 5-byte sync (40 bits) returns 0x08 (correct).
-     * If caller is later changed to pass bytes, this still works for our config. */
-    if( syncWordLenBitsOrBytes <= 1 ) return 0x00;
-    if( syncWordLenBitsOrBytes >= 5 ) return 0x08;
-    return ( uint8_t )( ( syncWordLenBitsOrBytes - 1 ) << 1 );
+static uint8_t SX1280GetGfskSyncWordLenParam( uint8_t syncWordLenInBits ) {
+    /* SX1280 SetPacketParams byte[1] encodes sync word length in bytes:
+     *   0x00 = 1B, 0x02 = 2B, 0x04 = 3B, 0x06 = 4B, 0x08 = 5B.
+     * Caller passes bits (n_bytes << 3). Previous version returned 0x08 for
+     * any input >=5 — that broke LWB which uses 3-byte sync word (passes
+     * 24 bits, was being encoded as 5 bytes → TX/RX length mismatch → sync
+     * never matched). */
+    uint8_t n_bytes = syncWordLenInBits / 8;
+    if (n_bytes < 1) n_bytes = 1;
+    if (n_bytes > 5) n_bytes = 5;
+    return (uint8_t)((n_bytes - 1) << 1);
 }
 static uint8_t SX1280GetGfskCrcParam( RadioCrcTypes_t crc ) {
     switch( crc ) {
@@ -600,7 +605,14 @@ void SX1280SetPacketParams( PacketParams_t *packetParams )
         n = 7;
         buf[0] = SX1280GetGfskPreambleLenParam( packetParams->Params.Gfsk.PreambleLength );
         buf[1] = SX1280GetGfskSyncWordLenParam( packetParams->Params.Gfsk.SyncWordLength );
-        buf[2] = packetParams->Params.Gfsk.AddrComp;
+        /* SX1280 GFSK PacketParam3: MatchSyncWord select bits (datasheet
+         * table 14.45), NOT a generic address compare. The Semtech driver
+         * mislabels this field as "AddrComp" and sets it to FILT_OFF=0x00
+         * which actually DISABLES sync word matching entirely — RX would
+         * never declare SyncValid/RxDone. Force RADIO_RX_MATCH_SYNCWORD_1
+         * (0x10) so sync word 1 is matched. Verified via two-node
+         * gfsk_test on user's DLP-RFS1280 + SX1280 fw 0xA9B7. */
+        buf[2] = 0x10;
         buf[3] = packetParams->Params.Gfsk.HeaderType;
         buf[4] = packetParams->Params.Gfsk.PayloadLength;
         buf[5] = SX1280GetGfskCrcParam( packetParams->Params.Gfsk.CrcLength );

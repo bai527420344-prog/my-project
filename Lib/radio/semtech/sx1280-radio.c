@@ -998,17 +998,29 @@ void RadioStandby( void )
     }
 }
 
+/* SX1280 SetRx/SetTx 3-byte timeout encoding:
+ *   buf[0] = PeriodBase  (0=15.625us, 1=62.5us, 2=1ms, 3=4ms)
+ *   buf[1] = Count MSB,  buf[2] = Count LSB
+ *   Count=0xFFFF + valid PeriodBase = continuous; Count=0 = no timeout.
+ * Previous code did `timeout_ms <<= 6` and 0xFFFFFF for continuous, which
+ * planted INVALID PeriodBase (0x0E..0xFF) into byte 0 — chip rejected or
+ * mis-interpreted the command. This was the reason LWB never RX'd on
+ * SX1280 (gfsk_test worked only because it hand-built {0x00,0xFF,0xFF}). */
+static uint32_t SX1280_FormatRxTxTimeout( uint32_t timeout_ms, bool continuous )
+{
+    if( continuous ) {
+        return 0x00FFFFu;  /* PeriodBase=0, Count=0xFFFF → continuous */
+    }
+    if( timeout_ms == 0 ) {
+        return 0;          /* no timeout: relies on caller to abort */
+    }
+    if( timeout_ms > 65535u ) timeout_ms = 65535u;
+    return ( 0x02u << 16 ) | timeout_ms; /* PeriodBase=1ms, Count=timeout_ms */
+}
+
 void RadioRx( uint32_t timeout_ms, bool continuous, bool scheduled )
 {
-    if( continuous )
-    {
-        timeout_ms = 0xFFFFFF;
-    }
-    else
-    {
-        timeout_ms <<= 6;   // x64 to convert from radio ticks to ms
-    }
-    SX1280SetRx( timeout_ms, !scheduled, false );
+    SX1280SetRx( SX1280_FormatRxTxTimeout( timeout_ms, continuous ), !scheduled, false );
 }
 
 void RadioRxMask( uint16_t mask, uint32_t timeout_ms, bool continuous, bool scheduled )
@@ -1022,15 +1034,7 @@ void RadioRxMask( uint16_t mask, uint32_t timeout_ms, bool continuous, bool sche
 
 void RadioRxBoosted( uint32_t timeout_ms, bool continuous, bool scheduled )
 {
-    if( continuous )
-    {
-        timeout_ms = 0xFFFFFF;
-    }
-    else
-    {
-        timeout_ms <<= 6;
-    }
-    SX1280SetRx( timeout_ms, !scheduled, true );
+    SX1280SetRx( SX1280_FormatRxTxTimeout( timeout_ms, continuous ), !scheduled, true );
 }
 
 void RadioRxBoostedMask( uint16_t mask, uint32_t timeout_ms, bool continuous, bool scheduled )
@@ -1055,7 +1059,9 @@ void RadioStartCad( void )
 
 void RadioTx( uint32_t timeout_ms, bool scheduled )
 {
-    SX1280SetTx( timeout_ms << 6, !scheduled );
+    /* Same SX1280 PeriodBase/Count format as RX. timeout_ms=0 → no timeout
+     * (chip stays in TX until TxDone or external abort). */
+    SX1280SetTx( SX1280_FormatRxTxTimeout( timeout_ms, false ), !scheduled );
 }
 
 void RadioTxMask( uint16_t mask, uint32_t timeout_ms, bool scheduled )

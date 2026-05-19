@@ -91,12 +91,15 @@ const radio_config_t radio_modulations[RADIO_NUM_MODULATIONS] =
         .coderate = 1,
         .preambleLen = 12,
     },
-    {   // 8: GFSK 125kbit/s
+    {   // 8: GFSK 125kbit/s, mod_idx=1.0, 32-bit preamble
+        // (fdev=62500 → mod_idx 1.0; previous 50000=mod 0.75; preamble
+        // doubled from 16→32 bits so AGC has time to lock on weak DLP-RFS1280
+        // RF link. Validated by raw gfsk_test path).
         .modem = MODEM_FSK,
         .bandwidth = 234300,
         .datarate = 125000,
-        .fdev = 50000,
-        .preambleLen = 2,
+        .fdev = 62500,
+        .preambleLen = 4,
     },
     {   // 9: GFSK 200kbit/s
         .modem = MODEM_FSK,
