@@ -222,15 +222,17 @@ void SX1280SetCrcPolynomial( uint16_t polynomial )
 
 void SX1280SetWhiteningSeed( uint16_t seed )
 {
-    uint8_t regValue = 0;
-
+    /* SX1280 whitening seed is 8-bit (NOT 9-bit like SX126x). Official Semtech
+     * SX1280 driver (sx1280-driver-c/sx1280.c SX1280SetWhiteningSeed) writes a
+     * single byte at REG_LR_WHITSEEDBASEADDR (0x09C5). Previous implementation
+     * was inherited from the SX126x driver and wrote 2 bytes (0x09C5 + 0x09C6),
+     * but 0x09C6 == REG_LR_CRCPOLYBASEADDR MSB -> every SetWhiteningSeed() call
+     * silently clobbered the CRC polynomial MSB to (uint8_t)seed, breaking the
+     * chip's CRC engine.  Keep the uint16_t prototype for ABI; only LSB used. */
     switch( SX1280GetPacketType( ) )
     {
         case PACKET_TYPE_GFSK:
-            regValue = SX1280ReadRegister( REG_LR_WHITSEEDBASEADDR_MSB ) & 0xFE;
-            regValue = ( ( seed >> 8 ) & 0x01 ) | regValue;
-            SX1280WriteRegister( REG_LR_WHITSEEDBASEADDR_MSB, regValue ); // only 1 bit.
-            SX1280WriteRegister( REG_LR_WHITSEEDBASEADDR_LSB, ( uint8_t )seed );
+            SX1280WriteRegister( REG_LR_WHITSEEDBASEADDR, ( uint8_t )seed );
             break;
 
         default:

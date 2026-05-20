@@ -310,7 +310,7 @@ typedef enum
     LORA_CR_4_8                             = 0x04,
     LORA_CR_LI_4_5                          = 0x05,
     LORA_CR_LI_4_6                          = 0x06,
-    LORA_CR_LI_4_8                          = 0x07,
+    LORA_CR_LI_4_7                          = 0x07,         //!< Long-interleave 4/7 (SX1280 official; SX1262 driver mis-named this as 4_8)
 }RadioLoRaCodingRates_t;
 
 /*!
@@ -341,7 +341,7 @@ typedef enum
 typedef enum
 {
     RADIO_PACKET_FIXED_LENGTH               = 0x00,         //!< The packet is known on both sides, no header included in the packet
-    RADIO_PACKET_VARIABLE_LENGTH            = 0x01,         //!< The packet is on variable size, header included
+    RADIO_PACKET_VARIABLE_LENGTH            = 0x20,         //!< The packet is on variable size, header included (SX1280 datasheet 14.5.2 PacketParam4; SX1262 used 0x01 here, must be 0x20 for SX1280)
 }RadioPacketLengthModes_t;
 
 /*!
@@ -349,13 +349,20 @@ typedef enum
  */
 typedef enum
 {
-    RADIO_CRC_OFF                           = 0x01,         //!< No CRC in use
-    RADIO_CRC_1_BYTES                       = 0x00,
-    RADIO_CRC_2_BYTES                       = 0x02,
-    RADIO_CRC_1_BYTES_INV                   = 0x04,
-    RADIO_CRC_2_BYTES_INV                   = 0x06,
-    RADIO_CRC_2_BYTES_IBM                   = 0xF1,
-    RADIO_CRC_2_BYTES_CCIT                  = 0xF2,
+    /* SX1280 GFSK PacketParam6 chip values (datasheet 14.5.2):
+     *   0x00 = OFF, 0x10 = 1 byte, 0x20 = 2 bytes, 0x30 = 3 bytes.
+     * IBM / CCIT / INV variants are caller-side selectors (drive
+     * SX1280SetCrcSeed/SX1280SetCrcPolynomial) — they must stay DISTINCT
+     * values so the polynomial-selection switch in SX1280SetPacketParams
+     * can branch. SX1280GetGfskCrcParam translates them all to 0x10/0x20. */
+    RADIO_CRC_OFF                           = 0x00,
+    RADIO_CRC_1_BYTES                       = 0x10,
+    RADIO_CRC_2_BYTES                       = 0x20,
+    RADIO_CRC_3_BYTES                       = 0x30,
+    RADIO_CRC_1_BYTES_INV                   = 0xE1,         //!< sentinel; chip-side 1-byte CRC with inverted polynomial
+    RADIO_CRC_2_BYTES_INV                   = 0xE2,         //!< sentinel; chip-side 2-byte CRC with inverted polynomial
+    RADIO_CRC_2_BYTES_IBM                   = 0xF1,         //!< sentinel; chip-side 2-byte CRC + IBM polynomial via SetCrcPolynomial
+    RADIO_CRC_2_BYTES_CCIT                  = 0xF2,         //!< sentinel; chip-side 2-byte CRC + CCITT polynomial via SetCrcPolynomial
 }RadioCrcTypes_t;
 
 /*!
@@ -373,7 +380,7 @@ typedef enum
 typedef enum
 {
     LORA_PACKET_VARIABLE_LENGTH             = 0x00,         //!< The packet is on variable size, header included
-    LORA_PACKET_FIXED_LENGTH                = 0x01,         //!< The packet is known on both sides, no header included in the packet
+    LORA_PACKET_FIXED_LENGTH                = 0x80,         //!< The packet is known on both sides, no header included in the packet (SX1280 datasheet 14.4.3 PacketParam2; SX1262 used 0x01, wrong for SX1280)
     LORA_PACKET_EXPLICIT                    = LORA_PACKET_VARIABLE_LENGTH,
     LORA_PACKET_IMPLICIT                    = LORA_PACKET_FIXED_LENGTH,
 }RadioLoRaPacketLengthsMode_t;

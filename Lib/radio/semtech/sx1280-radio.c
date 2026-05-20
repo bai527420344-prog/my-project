@@ -731,7 +731,9 @@ void RadioSetRxConfig( RadioModems_t modem, uint32_t bandwidth,
 
             SX1280.PacketParams.Params.LoRa.PreambleLength = preambleLen;
 
-            SX1280.PacketParams.Params.LoRa.HeaderType = ( RadioLoRaPacketLengthsMode_t )fixLen;
+            /* Bool cast to enum yielded 0x01 for fixed-length, but SX1280
+             * expects 0x80 (datasheet 14.4.3). Use proper enum names. */
+            SX1280.PacketParams.Params.LoRa.HeaderType = ( fixLen == true ) ? LORA_PACKET_FIXED_LENGTH : LORA_PACKET_VARIABLE_LENGTH;
 
             SX1280.PacketParams.Params.LoRa.PayloadLength = MaxPayloadLength;
             SX1280.PacketParams.Params.LoRa.CrcMode = ( RadioLoRaCrcModes_t )crcOn;
@@ -800,7 +802,9 @@ void RadioSetTxConfig( RadioModems_t modem, int8_t power, uint32_t fdev,
 
             SX1280.PacketParams.Params.LoRa.PreambleLength = preambleLen;
 
-            SX1280.PacketParams.Params.LoRa.HeaderType = ( RadioLoRaPacketLengthsMode_t )fixLen;
+            /* Bool cast to enum yielded 0x01 for fixed-length, but SX1280
+             * expects 0x80 (datasheet 14.4.3). Use proper enum names. */
+            SX1280.PacketParams.Params.LoRa.HeaderType = ( fixLen == true ) ? LORA_PACKET_FIXED_LENGTH : LORA_PACKET_VARIABLE_LENGTH;
             SX1280.PacketParams.Params.LoRa.PayloadLength = MaxPayloadLength;
             SX1280.PacketParams.Params.LoRa.CrcMode = ( RadioLoRaCrcModes_t )crcOn;
             SX1280.PacketParams.Params.LoRa.InvertIQ = ( RadioLoRaIQModes_t )iqInverted;
@@ -1008,11 +1012,16 @@ void RadioStandby( void )
  * SX1280 (gfsk_test worked only because it hand-built {0x00,0xFF,0xFF}). */
 static uint32_t SX1280_FormatRxTxTimeout( uint32_t timeout_ms, bool continuous )
 {
-    if( continuous ) {
-        return 0x00FFFFu;  /* PeriodBase=0, Count=0xFFFF → continuous */
-    }
-    if( timeout_ms == 0 ) {
-        return 0;          /* no timeout: relies on caller to abort */
+    /* SX1280 SetRx Count semantics (Semtech header, sx1280.h):
+     *   RX_TX_CONTINUOUS = { Step=0, NbSteps=0xFFFF }  -> stay in RX until aborted
+     *   RX_TX_SINGLE     = { Step=0, NbSteps=0     }  -> exit on FIRST RX event
+     *                                                    (incl. sync error)
+     * Gloria calls radio_receive(timeout_ms=0) expecting "wait indefinitely
+     * until I call radio_standby()". Returning 0 here put the chip in single
+     * shot mode, so NODE exited RX on the first noise-triggered sync error
+     * and never saw the HOST schedule packet -> permanent LWB timeout. */
+    if( continuous || timeout_ms == 0 ) {
+        return 0x00FFFFu;  /* PeriodBase=0, Count=0xFFFF -> continuous */
     }
     if( timeout_ms > 65535u ) timeout_ms = 65535u;
     return ( 0x02u << 16 ) | timeout_ms; /* PeriodBase=1ms, Count=timeout_ms */
