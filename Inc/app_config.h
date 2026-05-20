@@ -102,7 +102,10 @@
 #define LWB_SCHED_PERIOD                15      // same as old eval_l476 project
 #define LWB_CONT_USE_HSTIMER            1
 #if GLORIA_INTERFACE_MODULATION >= 8
-  #define LWB_MAX_PAYLOAD_LEN           16   /* GFSK: small packets for weak link */
+  /* GFSK: small packets for weak link. DPP minimum = DPP_MSG_HDR_LEN(16) +
+   * DPP_MSG_CRC_LEN(2) = 18 bytes, so this must be >= 18. With 32 we leave
+   * ~14 bytes for actual payload data. */
+  #define LWB_MAX_PAYLOAD_LEN           32
 #else
   #define LWB_MAX_PAYLOAD_LEN           80   /* LoRa: normal LWB sizes */
 #endif
