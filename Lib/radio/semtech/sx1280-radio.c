@@ -491,13 +491,21 @@ uint8_t FlrcSyncWord[4] = { 0xDD, 0xA0, 0x96, 0x69 };
  * Mirrors the SX1280GetGfskBrBwParam pattern used for GFSK. */
 static uint8_t SX1280GetFlrcBrBwParam( uint32_t bitrate_bps, uint32_t bandwidth_hz )
 {
-    if (bitrate_bps <= 260000U   && bandwidth_hz <= 300000U)   return FLRC_BR_0_260_BW_0_3;
-    if (bitrate_bps <= 325000U   && bandwidth_hz <= 300000U)   return FLRC_BR_0_325_BW_0_3;
-    if (bitrate_bps <= 520000U   && bandwidth_hz <= 600000U)   return FLRC_BR_0_520_BW_0_6;
-    if (bitrate_bps <= 650000U   && bandwidth_hz <= 600000U)   return FLRC_BR_0_650_BW_0_6;
-    if (bitrate_bps <= 1040000U  && bandwidth_hz <= 1200000U)  return FLRC_BR_1_040_BW_1_2;
-    if (bitrate_bps <= 1300000U  && bandwidth_hz <= 1200000U)  return FLRC_BR_1_300_BW_1_2;
-    if (bitrate_bps <= 2080000U  && bandwidth_hz <= 2400000U)  return FLRC_BR_2_080_BW_2_4;
+    /* SX1280 FLRC pairs each bitrate with a fixed bandwidth (datasheet 14.6.5);
+     * the chip byte already encodes both. The bandwidth argument is therefore
+     * informational only. Earlier version also gated on bandwidth_hz which
+     * broke NODE RX because radio_helpers.c passes the drift-corrected
+     * bandwidth_rx (~349 kHz for 300 kHz nominal) and that overflowed to the
+     * next bucket -- NODE listened at 600 kHz BW while HOST transmitted at
+     * 300 kHz BW, so they never synced. Now bitrate alone selects the entry. */
+    (void)bandwidth_hz;
+    if (bitrate_bps <= 260000U)   return FLRC_BR_0_260_BW_0_3;
+    if (bitrate_bps <= 325000U)   return FLRC_BR_0_325_BW_0_3;
+    if (bitrate_bps <= 520000U)   return FLRC_BR_0_520_BW_0_6;
+    if (bitrate_bps <= 650000U)   return FLRC_BR_0_650_BW_0_6;
+    if (bitrate_bps <= 1040000U)  return FLRC_BR_1_040_BW_1_2;
+    if (bitrate_bps <= 1300000U)  return FLRC_BR_1_300_BW_1_2;
+    if (bitrate_bps <= 2080000U)  return FLRC_BR_2_080_BW_2_4;
     return FLRC_BR_2_600_BW_2_4;
 }
 
