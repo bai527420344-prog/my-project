@@ -73,10 +73,30 @@
 /* Gloria config */
 #define GLORIA_INTERFACE_POWER          10   /* transmit power in dBm (max 12 for SX1280); keep non-zero init for binary patching!; config will be overwritten by binary patching! */
 #if FLOCKLAB
-  #define GLORIA_INTERFACE_MODULATION   8    /* 7 = LoRa SF5 BW812k, 8 = GFSK 125kbit/s — both validated on SX1280; needs <1cm distance on DLP-RFS1280 due to weak RF chain */
+  #define GLORIA_INTERFACE_MODULATION   8
+  /* SX1280 supported modulation indices (see radio_constants.c):
+   *    0..7 = LoRa SF12..SF5  @ BW=203/406/812/1625 kHz
+   *    8    = GFSK 125 kbit/s  @ BW=234 kHz, fdev=62.5 kHz, mod_idx=1.0   (validated)
+   *    9    = GFSK 200 kbit/s  (SX1262 inherited, not validated on SX1280)
+   *    10   = GFSK 250 kbit/s  (SX1262 inherited, not validated on SX1280)
+   *    11   = FLRC 260 kbit/s, CR=1/2, BW=300 kHz   -> best sensitivity ~-111 dBm
+   *    12   = FLRC 650 kbit/s, CR=1/2, BW=600 kHz   -> mid-rate     ~-105 dBm
+   *    13   = FLRC 1300 kbit/s, CR=3/4, BW=1.2 MHz -> highest rate ~-100 dBm
+   * Currently validated: 7 (LoRa SF5) and 8 (GFSK 125k). 11-13 introduced
+   * in module F (see .plan/F_FLRC_detailed_spec.md). */
   #define GLORIA_INTERFACE_RF_BAND      24   /* 2450 MHz (see table in radio_constants.c for options); config will be overwritten by binary patching! */
 #else
-  #define GLORIA_INTERFACE_MODULATION   8    /* 7 = LoRa SF5 BW812k, 8 = GFSK 125kbit/s — both validated on SX1280; needs <1cm distance on DLP-RFS1280 due to weak RF chain */
+  #define GLORIA_INTERFACE_MODULATION   8
+  /* SX1280 supported modulation indices (see radio_constants.c):
+   *    0..7 = LoRa SF12..SF5  @ BW=203/406/812/1625 kHz
+   *    8    = GFSK 125 kbit/s  @ BW=234 kHz, fdev=62.5 kHz, mod_idx=1.0   (validated)
+   *    9    = GFSK 200 kbit/s  (SX1262 inherited, not validated on SX1280)
+   *    10   = GFSK 250 kbit/s  (SX1262 inherited, not validated on SX1280)
+   *    11   = FLRC 260 kbit/s, CR=1/2, BW=300 kHz   -> best sensitivity ~-111 dBm
+   *    12   = FLRC 650 kbit/s, CR=1/2, BW=600 kHz   -> mid-rate     ~-105 dBm
+   *    13   = FLRC 1300 kbit/s, CR=3/4, BW=1.2 MHz -> highest rate ~-100 dBm
+   * Currently validated: 7 (LoRa SF5) and 8 (GFSK 125k). 11-13 introduced
+   * in module F (see .plan/F_FLRC_detailed_spec.md). */
   #define GLORIA_INTERFACE_RF_BAND      24   /* 2450 MHz (see table in radio_constants.c for options); config will be overwritten by binary patching! */
 #endif /* FLOCKLAB */
 
