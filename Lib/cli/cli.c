@@ -86,6 +86,7 @@ void cli_init() {
   gloria_register_commands();
   radio_register_commands();
   gfsk_test_register_commands();
+  flrc_test_register_commands();
   develop_register_commands();
   cli_register_commands();
 #endif /* CLI_ENABLE */

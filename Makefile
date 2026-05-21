@@ -108,6 +108,7 @@ Lib/cli/commands/system_cmd.c \
 Lib/cli/commands/test_cmd.c \
 Lib/cli/commands/radio_cmd.c \
 Lib/cli/commands/gfsk_test_cmd.c \
+Lib/cli/commands/flrc_test_cmd.c \
 Lib/cli/commands/develop_cmd.c \
 Lib/radio/radio_constants.c \
 Lib/radio/radio_helpers.c \
