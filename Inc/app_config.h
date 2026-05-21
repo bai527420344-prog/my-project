@@ -73,10 +73,10 @@
 /* Gloria config */
 #define GLORIA_INTERFACE_POWER          10   /* transmit power in dBm (max 12 for SX1280); keep non-zero init for binary patching!; config will be overwritten by binary patching! */
 #if FLOCKLAB
-  #define GLORIA_INTERFACE_MODULATION   8    /* 8 = GFSK 125kbit/s; needs <1cm distance on DLP-RFS1280 due to weak RF chain */
+  #define GLORIA_INTERFACE_MODULATION   8    /* 7 = LoRa SF5 BW812k, 8 = GFSK 125kbit/s — both validated on SX1280; needs <1cm distance on DLP-RFS1280 due to weak RF chain */
   #define GLORIA_INTERFACE_RF_BAND      24   /* 2450 MHz (see table in radio_constants.c for options); config will be overwritten by binary patching! */
 #else
-  #define GLORIA_INTERFACE_MODULATION   8    /* 8 = GFSK 125kbit/s; needs <1cm distance on DLP-RFS1280 due to weak RF chain */
+  #define GLORIA_INTERFACE_MODULATION   8    /* 7 = LoRa SF5 BW812k, 8 = GFSK 125kbit/s — both validated on SX1280; needs <1cm distance on DLP-RFS1280 due to weak RF chain */
   #define GLORIA_INTERFACE_RF_BAND      24   /* 2450 MHz (see table in radio_constants.c for options); config will be overwritten by binary patching! */
 #endif /* FLOCKLAB */
 
