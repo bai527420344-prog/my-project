@@ -32,10 +32,10 @@
 
 const uint8_t gloria_modulations[]             = { 3,  5,  7, 9 };
 const int8_t  gloria_powers[]                  = { 0, 10, 12 };                                 // dBm
-const uint8_t gloria_default_power_levels[]    = { 0,  0,  0,  0,  0,  0,  0,  0,  2,  2,  2 };  // see radio_powers
-const uint8_t gloria_default_retransmissions[] = { 3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3 };
-const uint8_t gloria_default_acks[]            = { 3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3 };
-const uint8_t gloria_default_data_slots[]      = { 4,  4,  4,  4,  8,  8, 12, 12, 16, 16, 16 };
+const uint8_t gloria_default_power_levels[]    = { 0,  0,  0,  0,  0,  0,  0,  0,  2,  2,  2,  2,  2,  2 };  // see radio_powers; FLRC entries 11-13 use same as GFSK
+const uint8_t gloria_default_retransmissions[] = { 3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3 };
+const uint8_t gloria_default_acks[]            = { 3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3 };
+const uint8_t gloria_default_data_slots[]      = { 4,  4,  4,  4,  8,  8, 12, 12, 16, 16, 16, 16, 16, 16 };
 
 /*
  * SX1280 theoretical timing values (20260413)
@@ -133,5 +133,31 @@ const gloria_timings_t gloria_timings[] = {
         .floodInitOverhead  = 18000,    // 2.25 ms
         .rxOffset           = 2560,     // 320.000 us
         .txSync             = 3140,     // 392.5 us (SX1262 value, same bitrate)
+    },
+    /* FLRC entries 11-13: conservative starting values per MIGRATION_PLAN
+     * R6 rule "宁可浪费时间，不可打断 flood". FLRC physical bitrate is high
+     * (260k..1.3M) but the chip-side state-machine overhead is similar to GFSK,
+     * so we reuse GFSK overhead numbers and scale by bitrate ratio.
+     * Hardware calibration deferred to F8 / R6 follow-up. */
+    { // 11 (FLRC 260k CR=1/2)  -> effective payload bitrate ~130 kbit/s
+        .slotOverhead       = 32000,    // 4.0 ms  (a bit more than GFSK 125k due to FLRC header)
+        .slotAckOverhead    = 32000,
+        .floodInitOverhead  = 18000,    // 2.25 ms
+        .rxOffset           = 4096,     // 512 us
+        .txSync             = 4500,     // ~562 us (placeholder)
+    },
+    { // 12 (FLRC 650k CR=1/2)  -> effective ~325 kbit/s
+        .slotOverhead       = 20000,    // 2.5 ms
+        .slotAckOverhead    = 20000,
+        .floodInitOverhead  = 18000,
+        .rxOffset           = 2560,
+        .txSync             = 3200,
+    },
+    { // 13 (FLRC 1300k CR=3/4) -> effective ~975 kbit/s
+        .slotOverhead       = 12000,    // 1.5 ms
+        .slotAckOverhead    = 12000,
+        .floodInitOverhead  = 18000,
+        .rxOffset           = 2000,
+        .txSync             = 2500,
     },
 };
