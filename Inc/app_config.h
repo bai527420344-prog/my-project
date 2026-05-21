@@ -90,13 +90,10 @@
 #define LWB_NETWORK_ID                  0x4444
 #define LWB_MIN_NODE_ID                 1
 #define LWB_MAX_NODE_ID                 32
-/* Weak DLP-RFS1280 RF chain needs more redundancy for GFSK to close link.
- * LoRa modes (modulation 0-7) keep the original n_tx=2 / payload=80. */
-#if GLORIA_INTERFACE_MODULATION >= 8
-  #define LWB_N_TX                      4
-#else
-  #define LWB_N_TX                      2
-#endif
+/* Both GFSK (mod 8+) and LoRa (mod 0-7) use n_tx=2 retransmissions per
+ * Glossy slot. In 2-node topology this still gives 2 chip TXes per board
+ * (= total 4 transmissions in the flood). */
+#define LWB_N_TX                        2
 #define LWB_NUM_HOPS                    6
 #define LWB_T_GAP                       LWB_MS_TO_TICKS(10)
 #define LWB_SCHED_PERIOD                15      // same as old eval_l476 project
