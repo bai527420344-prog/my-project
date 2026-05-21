@@ -180,21 +180,11 @@ void SX1280SendPayload( uint8_t *payload, uint8_t size, uint32_t timeout )
 
 uint8_t SX1280SetSyncWord( uint8_t *syncWord )
 {
-    /* FLRC sync word is 4 bytes and starts at REG_LR_SYNCWORDBASEADDRESS + 1
-     * (official sx1280-driver-c/sx1280.c:644-647).  GFSK / BLE remain 8-byte
-     * write at the base address (only first N bytes are matched per
-     * SyncWordLength); preserving 8-byte write keeps GFSK path bit-identical
-     * to the validated b6c7290 milestone. */
-    switch( SX1280GetPacketType( ) )
-    {
-        case PACKET_TYPE_FLRC:
-            SX1280WriteRegisters( REG_LR_SYNCWORDBASEADDRESS + 1, syncWord, 4 );
-            break;
-        case PACKET_TYPE_GFSK:
-        default:
-            SX1280WriteRegisters( REG_LR_SYNCWORDBASEADDRESS, syncWord, 8 );
-            break;
-    }
+    /* Kept identical to b6c7290 (GFSK validated). FLRC writes its 4-byte
+     * sync word inline in RadioSetRxConfig/TxConfig MODEM_FLRC branches
+     * instead of routing through this function — adding a packet-type
+     * switch here empirically broke GFSK demodulation (2026-05-21 test). */
+    SX1280WriteRegisters( REG_LR_SYNCWORDBASEADDRESS, syncWord, 8 );
     return 0;
 }
 
@@ -544,6 +534,7 @@ static uint8_t SX1280GetGfskCrcParam( RadioCrcTypes_t crc ) {
     switch( crc ) {
     case RADIO_CRC_1_BYTES: return 0x10;
     case RADIO_CRC_2_BYTES: case RADIO_CRC_2_BYTES_IBM: case RADIO_CRC_2_BYTES_CCIT: return 0x20;
+    case RADIO_CRC_3_BYTES: return 0x30;    /* FLRC-only; GFSK datasheet 14.5.2 also accepts 0x30 */
     case RADIO_CRC_OFF: default: return 0x00;
     }
 }
@@ -585,11 +576,7 @@ void SX1280SetModulationParams( ModulationParams_t *modulationParams )
 
         break;
     case PACKET_TYPE_FLRC:
-        /* FLRC: 3 bytes pre-encoded chip values (datasheet 14.6.5).
-         *   buf[0] = BitrateBandwidth (RadioFlrcBitrates_t)
-         *   buf[1] = CodingRate       (RadioFlrcCodingRates_t)
-         *   buf[2] = ModulationShaping (reuse RadioModShapings_t; helper
-         *            handles SX126x->SX1280 value translation) */
+        /* FLRC: 3 bytes pre-encoded chip values (datasheet 14.6.5). */
         n = 3;
         buf[0] = ( uint8_t )modulationParams->Params.Flrc.BitrateBandwidth;
         buf[1] = ( uint8_t )modulationParams->Params.Flrc.CodingRate;
@@ -655,14 +642,7 @@ void SX1280SetPacketParams( PacketParams_t *packetParams )
         buf[4] = packetParams->Params.LoRa.InvertIQ;
         break;
     case PACKET_TYPE_FLRC:
-        /* FLRC: 7 bytes (datasheet 14.6.6 PacketParam1..7).
-         *   [0] PreambleLength encoded same as GFSK (4-bit mantissa / exponent)
-         *   [1] SyncWordLength    (FLRC_SYNC_WORD_LEN_P32S = 0x04 for 4-byte sync)
-         *   [2] SyncWordMatch     (0x10 = SW1 only, same convention as GFSK)
-         *   [3] HeaderType        (RADIO_PACKET_FIXED_LENGTH=0x00 / VARIABLE=0x20)
-         *   [4] PayloadLength     (bytes)
-         *   [5] CrcLength         (RadioCrcTypes_t chip byte: 0x00/0x10/0x20/0x30)
-         *   [6] Whitening         (DcFree: 0x00 ON / 0x08 OFF, reuse GFSK helper) */
+        /* FLRC: 7 bytes (datasheet 14.6.6 PacketParam1..7). */
         n = 7;
         buf[0] = SX1280GetGfskPreambleLenParam( packetParams->Params.Flrc.PreambleLength );
         buf[1] = ( uint8_t )packetParams->Params.Flrc.SyncWordLength;

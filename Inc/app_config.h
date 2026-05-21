@@ -73,7 +73,7 @@
 /* Gloria config */
 #define GLORIA_INTERFACE_POWER          10   /* transmit power in dBm (max 12 for SX1280); keep non-zero init for binary patching!; config will be overwritten by binary patching! */
 #if FLOCKLAB
-  #define GLORIA_INTERFACE_MODULATION   8
+  #define GLORIA_INTERFACE_MODULATION   11
   /* SX1280 supported modulation indices (see radio_constants.c):
    *    0..7 = LoRa SF12..SF5  @ BW=203/406/812/1625 kHz
    *    8    = GFSK 125 kbit/s  @ BW=234 kHz, fdev=62.5 kHz, mod_idx=1.0   (validated)
@@ -86,7 +86,7 @@
    * in module F (see .plan/F_FLRC_detailed_spec.md). */
   #define GLORIA_INTERFACE_RF_BAND      24   /* 2450 MHz (see table in radio_constants.c for options); config will be overwritten by binary patching! */
 #else
-  #define GLORIA_INTERFACE_MODULATION   8
+  #define GLORIA_INTERFACE_MODULATION   11
   /* SX1280 supported modulation indices (see radio_constants.c):
    *    0..7 = LoRa SF12..SF5  @ BW=203/406/812/1625 kHz
    *    8    = GFSK 125 kbit/s  @ BW=234 kHz, fdev=62.5 kHz, mod_idx=1.0   (validated)

@@ -482,7 +482,8 @@ uint8_t GfskSyncWordLength = 3;
 uint8_t GfskSyncWord[8] = { 0xC1, 0x94, 0xC1, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 /* FLRC uses a 4-byte sync word (vs GFSK's 5 effective bytes) written at
- * REG_LR_SYNCWORDBASEADDRESS + 1 by SX1280SetSyncWord (see sx1280.c F2 change).
+ * REG_LR_SYNCWORDBASEADDRESS + 1 directly from RadioSet{Rx,Tx}Config so the
+ * shared SX1280SetSyncWord stays b6c7290-identical for GFSK.
  * Default value mirrors Semtech PingPong demo (DD A0 96 69 with 28-bit MSB). */
 uint8_t FlrcSyncWord[4] = { 0xDD, 0xA0, 0x96, 0x69 };
 
@@ -814,7 +815,10 @@ void RadioSetRxConfig( RadioModems_t modem, uint32_t bandwidth,
             RadioSetModem( MODEM_FLRC );
             SX1280SetModulationParams( &SX1280.ModulationParams );
             SX1280SetPacketParams( &SX1280.PacketParams );
-            SX1280SetSyncWord( FlrcSyncWord );
+            /* FLRC sync word is 4 bytes at REG_LR_SYNCWORDBASEADDRESS + 1
+             * (official Semtech SX1280 driver). Route directly to keep the
+             * shared SX1280SetSyncWord identical to the GFSK-validated path. */
+            SX1280WriteRegisters( REG_LR_SYNCWORDBASEADDRESS + 1, FlrcSyncWord, 4 );
 
             break;
     }
@@ -907,7 +911,10 @@ void RadioSetTxConfig( RadioModems_t modem, int8_t power, uint32_t fdev,
             RadioSetModem( MODEM_FLRC );
             SX1280SetModulationParams( &SX1280.ModulationParams );
             SX1280SetPacketParams( &SX1280.PacketParams );
-            SX1280SetSyncWord( FlrcSyncWord );
+            /* FLRC sync word is 4 bytes at REG_LR_SYNCWORDBASEADDRESS + 1
+             * (official Semtech SX1280 driver). Route directly to keep the
+             * shared SX1280SetSyncWord identical to the GFSK-validated path. */
+            SX1280WriteRegisters( REG_LR_SYNCWORDBASEADDRESS + 1, FlrcSyncWord, 4 );
             break;
     }
 
@@ -1247,10 +1254,23 @@ void RadioReadFifo( uint8_t *buffer, uint8_t size )
 
 void RadioSetMaxPayloadLength( uint8_t max )
 {
-    if( SX1280GetPacketType( ) == PACKET_TYPE_LORA )
+    RadioPacketTypes_t pktType = SX1280GetPacketType( );
+
+    if( pktType == PACKET_TYPE_LORA )
     {
         SX1280.PacketParams.Params.LoRa.PayloadLength = MaxPayloadLength = max;
         SX1280SetPacketParams( &SX1280.PacketParams );
+    }
+    else if( pktType == PACKET_TYPE_FLRC )
+    {
+        /* FLRC: Gfsk and Flrc PayloadLength sit at different union offsets
+         * (Gfsk[6] vs Flrc[5]). Falling through to the Gfsk branch would
+         * read Flrc.PayloadLength as HeaderType and clobber Flrc.CrcLength. */
+        if( SX1280.PacketParams.Params.Flrc.HeaderType == RADIO_PACKET_VARIABLE_LENGTH )
+        {
+            SX1280.PacketParams.Params.Flrc.PayloadLength = MaxPayloadLength = max;
+            SX1280SetPacketParams( &SX1280.PacketParams );
+        }
     }
     else
     {
