@@ -146,6 +146,23 @@ void vTask_com(void const * argument)
   gloria_set_modulation(gloria_modulation);
   gloria_set_band(gloria_band);
 
+  {
+    const char* mod_name =
+      (gloria_modulation <= 7)                       ? "LoRa SF" :
+      (gloria_modulation >= 8  && gloria_modulation <= 10) ? "GFSK" :
+      (gloria_modulation >= 11 && gloria_modulation <= 13) ? "FLRC" :
+                                                       "UNKNOWN";
+    if (gloria_modulation <= 7) {
+      LOG_INFO("modulation index %u: %s%u (LoRa, BW per radio_constants)",
+               gloria_modulation, mod_name, 12U - gloria_modulation);
+    } else {
+      static const uint32_t fsk_flrc_kbps[] = {125, 200, 250, 260, 650, 1300};
+      uint32_t kbps = (gloria_modulation >= 8 && gloria_modulation <= 13)
+                       ? fsk_flrc_kbps[gloria_modulation - 8] : 0U;
+      LOG_INFO("modulation index %u: %s %lu kbit/s", gloria_modulation, mod_name, kbps);
+    }
+  }
+
   /* set LWB config values */
   if (lwb_sched_set_period(lwb_period)) { // Note: period needs to be larger than max round duration (based on current values of )
     LOG_INFO("LWB successfully set period to %lus", lwb_period);
