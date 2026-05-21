@@ -57,7 +57,7 @@
 #define RADIO_MAX_POWER                 12 // dBm (SX1280)
 #define RADIO_MIN_POWER                 -18 // dBm (SX1280)
 
-#define RADIO_NUM_MODULATIONS           11
+#define RADIO_NUM_MODULATIONS           14   /* 0-7 LoRa SF12-SF5, 8-10 GFSK, 11-13 FLRC */
 #define RADIO_NUM_CAD_PARAMS            8
 #define RADIO_NUM_BANDS                 40
 

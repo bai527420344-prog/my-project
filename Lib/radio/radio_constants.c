@@ -115,6 +115,33 @@ const radio_config_t radio_modulations[RADIO_NUM_MODULATIONS] =
         .fdev = 125000,
         .preambleLen = 4,
     },
+    {   // 11: FLRC 260kbit/s, CR=1/2, BW=300kHz — best sensitivity (~-111 dBm)
+        // For the weak DLP-RFS1280 RF chain this is the recommended FLRC entry.
+        // `.coderate` is repurposed for FLRC: 1=CR_1/2, 2=CR_3/4, 3=CR_1/1
+        // (see SX1280GetFlrcCrParam in sx1280-radio.c).
+        .modem = MODEM_FLRC,
+        .bandwidth = 300000,
+        .datarate = 260000,
+        .fdev = 0,
+        .coderate = 1,
+        .preambleLen = 4,
+    },
+    {   // 12: FLRC 650kbit/s, CR=1/2, BW=600kHz — mid-rate, ~-105 dBm
+        .modem = MODEM_FLRC,
+        .bandwidth = 600000,
+        .datarate = 650000,
+        .fdev = 0,
+        .coderate = 1,
+        .preambleLen = 4,
+    },
+    {   // 13: FLRC 1300kbit/s, CR=3/4, BW=1.2MHz — highest data rate, ~-100 dBm
+        .modem = MODEM_FLRC,
+        .bandwidth = 1200000,
+        .datarate = 1300000,
+        .fdev = 0,
+        .coderate = 2,
+        .preambleLen = 4,
+    },
 };
 
 const radio_band_t radio_bands[RADIO_NUM_BANDS] =
