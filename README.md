@@ -10,21 +10,38 @@ The original baseline was:
 
 The current work keeps the original protocol logic as much as possible and only replaces the radio chip plus the required board-level adaptation.
 
+## Project Status (2026-05-21)
+
+Migration `SX1262 → SX1280` is complete. All planned modules `R0`–`R6` and `F` have been validated end-to-end; `R7` (final cleanup) is in progress.
+
+The three SX1280 modulations are all running over LWB with two physical boards (HOST + NODE, 15 s round period, n_tx=2):
+
+| `GLORIA_INTERFACE_MODULATION` | Modulation | Status |
+|---|---|---|
+| `7`  | LoRa SF5             | validated |
+| `8`  | GFSK 125 kbit/s      | validated |
+| `11` | FLRC 260 kbit/s CR=1/2 | validated |
+| `9`/`10`     | GFSK 200k / 250k    | table entries present, not end-to-end verified |
+| `12`/`13`    | FLRC 650k / 1300k   | table entries present, not end-to-end verified |
+
+Switching between modulations only requires changing the value of `GLORIA_INTERFACE_MODULATION` in [Inc/app_config.h](Inc/app_config.h) and rebuilding both boards (`make clean && make -j4 && st-flash ...`). The boot log line `task_com: modulation index N: <name> <rate>` shows the active mode.
+
 ## Project Description
 
 Project target:
 
 - MCU: `STM32L476RG`
 - Board: `NUCLEO-L476RG`
-- Radio: `SX1280`
+- Radio: `SX1280` (DLP-RFS1280 module)
 - Band: `2.4 GHz ISM`
-- Protocol stack: `LWB`
+- Protocol stack: `LWB` (Glossy floods scheduled by LWB)
 
-Current project focus:
+Goals achieved:
 
 - bring up `SX1280` on the existing `L476` platform
 - keep the existing `LWB / GLORIA / radio` logic structure
 - complete the migration from `SX1262` to `SX1280`
+- support all three SX1280 main modulations (LoRa, GFSK, FLRC) through the same LWB stack
 
 ## Hardware Baseline
 
