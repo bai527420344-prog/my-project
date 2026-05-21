@@ -481,6 +481,40 @@ uint8_t GfskSyncWordLength = 3;
 
 uint8_t GfskSyncWord[8] = { 0xC1, 0x94, 0xC1, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
+/* FLRC uses a 4-byte sync word (vs GFSK's 5 effective bytes) written at
+ * REG_LR_SYNCWORDBASEADDRESS + 1 by SX1280SetSyncWord (see sx1280.c F2 change).
+ * Default value mirrors Semtech PingPong demo (DD A0 96 69 with 28-bit MSB). */
+uint8_t FlrcSyncWord[4] = { 0xDD, 0xA0, 0x96, 0x69 };
+
+/* FLRC parameter helpers — map (bit-rate, bandwidth) and coding-rate index
+ * to the pre-encoded chip bytes defined in RadioFlrc{Bitrates,CodingRates}_t.
+ * Mirrors the SX1280GetGfskBrBwParam pattern used for GFSK. */
+static uint8_t SX1280GetFlrcBrBwParam( uint32_t bitrate_bps, uint32_t bandwidth_hz )
+{
+    if (bitrate_bps <= 260000U   && bandwidth_hz <= 300000U)   return FLRC_BR_0_260_BW_0_3;
+    if (bitrate_bps <= 325000U   && bandwidth_hz <= 300000U)   return FLRC_BR_0_325_BW_0_3;
+    if (bitrate_bps <= 520000U   && bandwidth_hz <= 600000U)   return FLRC_BR_0_520_BW_0_6;
+    if (bitrate_bps <= 650000U   && bandwidth_hz <= 600000U)   return FLRC_BR_0_650_BW_0_6;
+    if (bitrate_bps <= 1040000U  && bandwidth_hz <= 1200000U)  return FLRC_BR_1_040_BW_1_2;
+    if (bitrate_bps <= 1300000U  && bandwidth_hz <= 1200000U)  return FLRC_BR_1_300_BW_1_2;
+    if (bitrate_bps <= 2080000U  && bandwidth_hz <= 2400000U)  return FLRC_BR_2_080_BW_2_4;
+    return FLRC_BR_2_600_BW_2_4;
+}
+
+static uint8_t SX1280GetFlrcCrParam( uint8_t cr_idx )
+{
+    /* radio_constants `.coderate` is repurposed for FLRC:
+     *   1 -> CR 1/2  (best sensitivity, halves throughput)
+     *   2 -> CR 3/4  (medium)
+     *   3 -> CR 1/1  (no FEC, max throughput) */
+    switch( cr_idx ) {
+        case 2:  return FLRC_CR_3_4;
+        case 3:  return FLRC_CR_1_0;
+        case 1:
+        default: return FLRC_CR_1_2;
+    }
+}
+
 uint8_t RadioRxPayload[RADIO_MAX_PAYLOAD_SIZE + 1] = { 0 };
 
 bool IrqFired = false;
@@ -617,6 +651,10 @@ void RadioSetModem( RadioModems_t modem )
             RadioSetPublicNetwork( RadioPublicNetwork.Current );
         }
         break;
+    case MODEM_FLRC:
+        SX1280SetPacketType( PACKET_TYPE_FLRC );
+        RadioPublicNetwork.Current = false;
+        break;
     }
 
 }
@@ -745,6 +783,32 @@ void RadioSetRxConfig( RadioModems_t modem, uint32_t bandwidth,
             SX1280SetPacketParams( &SX1280.PacketParams );
 
             break;
+
+        case MODEM_FLRC:
+            /* FLRC RX config — datasheet 14.6.  Modulation byte map is
+             * pre-encoded via helpers; packet params follow same convention
+             * as GFSK (preamble length encoded in bits, helper translates). */
+            SX1280.ModulationParams.PacketType = PACKET_TYPE_FLRC;
+            SX1280.ModulationParams.Params.Flrc.BitrateBandwidth  = SX1280GetFlrcBrBwParam( datarate, bandwidth );
+            SX1280.ModulationParams.Params.Flrc.CodingRate        = SX1280GetFlrcCrParam( coderate );
+            SX1280.ModulationParams.Params.Flrc.ModulationShaping = MOD_SHAPING_G_BT_1;
+
+            SX1280.PacketParams.PacketType = PACKET_TYPE_FLRC;
+            SX1280.PacketParams.Params.Flrc.PreambleLength  = ( preambleLen << 3 );        /* bytes -> bits */
+            SX1280.PacketParams.Params.Flrc.SyncWordLength  = FLRC_SYNC_WORD_LEN_P32S;
+            SX1280.PacketParams.Params.Flrc.SyncWordMatch   = 0x10;                        /* match SW1 only */
+            SX1280.PacketParams.Params.Flrc.HeaderType      = ( fixLen == true ) ? RADIO_PACKET_FIXED_LENGTH : RADIO_PACKET_VARIABLE_LENGTH;
+            SX1280.PacketParams.Params.Flrc.PayloadLength   = MaxPayloadLength;
+            SX1280.PacketParams.Params.Flrc.CrcLength       = ( crcOn ) ? RADIO_CRC_3_BYTES : RADIO_CRC_OFF;
+            SX1280.PacketParams.Params.Flrc.DcFree          = RADIO_DC_FREE_OFF;            /* FLRC does not support whitening */
+
+            RadioStandby( );
+            RadioSetModem( MODEM_FLRC );
+            SX1280SetModulationParams( &SX1280.ModulationParams );
+            SX1280SetPacketParams( &SX1280.PacketParams );
+            SX1280SetSyncWord( FlrcSyncWord );
+
+            break;
     }
 }
 
@@ -813,6 +877,29 @@ void RadioSetTxConfig( RadioModems_t modem, int8_t power, uint32_t fdev,
             RadioSetModem( MODEM_LORA );
             SX1280SetModulationParams( &SX1280.ModulationParams );
             SX1280SetPacketParams( &SX1280.PacketParams );
+            break;
+
+        case MODEM_FLRC:
+            /* FLRC TX config — mirrors the RX case above. */
+            SX1280.ModulationParams.PacketType = PACKET_TYPE_FLRC;
+            SX1280.ModulationParams.Params.Flrc.BitrateBandwidth  = SX1280GetFlrcBrBwParam( datarate, bandwidth );
+            SX1280.ModulationParams.Params.Flrc.CodingRate        = SX1280GetFlrcCrParam( coderate );
+            SX1280.ModulationParams.Params.Flrc.ModulationShaping = MOD_SHAPING_G_BT_1;
+
+            SX1280.PacketParams.PacketType = PACKET_TYPE_FLRC;
+            SX1280.PacketParams.Params.Flrc.PreambleLength  = ( preambleLen << 3 );
+            SX1280.PacketParams.Params.Flrc.SyncWordLength  = FLRC_SYNC_WORD_LEN_P32S;
+            SX1280.PacketParams.Params.Flrc.SyncWordMatch   = 0x10;
+            SX1280.PacketParams.Params.Flrc.HeaderType      = ( fixLen == true ) ? RADIO_PACKET_FIXED_LENGTH : RADIO_PACKET_VARIABLE_LENGTH;
+            SX1280.PacketParams.Params.Flrc.PayloadLength   = MaxPayloadLength;
+            SX1280.PacketParams.Params.Flrc.CrcLength       = ( crcOn ) ? RADIO_CRC_3_BYTES : RADIO_CRC_OFF;
+            SX1280.PacketParams.Params.Flrc.DcFree          = RADIO_DC_FREE_OFF;
+
+            RadioStandby( );
+            RadioSetModem( MODEM_FLRC );
+            SX1280SetModulationParams( &SX1280.ModulationParams );
+            SX1280SetPacketParams( &SX1280.PacketParams );
+            SX1280SetSyncWord( FlrcSyncWord );
             break;
     }
 
@@ -940,6 +1027,26 @@ uint32_t RadioTimeOnAir( RadioModems_t modem, uint32_t bandwidth,
             denominator = RadioGetLoRaBandwidthInHz( Bandwidths[bandwidth] );
         }
         break;
+    case MODEM_FLRC:
+        {
+            /* FLRC TOA approximation (datasheet 14.6.7):
+             *   preamble (bytes*8) + 4-byte sync (32 bits) +
+             *   6-byte FLRC header (48 bits, only if variable-len) +
+             *   payload * 8 / coding_rate +
+             *   CRC (3 bytes default) * 8 / coding_rate
+             * We use a conservative integer approximation: assume CR=1/2
+             * (double payload bits). This overestimates TOA by up to 2x for
+             * CR=1, which is acceptable per MIGRATION_PLAN R6 rule "宁可
+             * 浪费时间，不可打断 flood". F5 gloria_timings will use the
+             * same conservative approach. */
+            uint32_t bits = ( preambleLen << 3 ) +
+                            32U +                                  /* 4-byte sync */
+                            ( ( fixLen == false ) ? 48U : 0U ) +    /* 6-byte FLRC header for variable-length */
+                            ( ( payloadLen + ( crcOn ? 3U : 0U ) ) << 4 );   /* payload+CRC, doubled for CR=1/2 worst case */
+            numerator   = 1000000U * (uint64_t)bits;
+            denominator = datarate;
+        }
+        break;
     }
     // Perform integral ceil()
     return ( numerator + denominator - 1 ) / denominator;
@@ -958,13 +1065,18 @@ void RadioSendPayloadMask( uint16_t mask, uint8_t *buffer, uint8_t size )
                            IRQ_RADIO_NONE,
                            IRQ_RADIO_NONE );
 
-    if( SX1280GetPacketType( ) == PACKET_TYPE_LORA )
+    switch( SX1280GetPacketType( ) )
     {
-        SX1280.PacketParams.Params.LoRa.PayloadLength = size;
-    }
-    else
-    {
-        SX1280.PacketParams.Params.Gfsk.PayloadLength = size;
+        case PACKET_TYPE_LORA:
+            SX1280.PacketParams.Params.LoRa.PayloadLength = size;
+            break;
+        case PACKET_TYPE_FLRC:
+            SX1280.PacketParams.Params.Flrc.PayloadLength = size;
+            break;
+        case PACKET_TYPE_GFSK:
+        default:
+            SX1280.PacketParams.Params.Gfsk.PayloadLength = size;
+            break;
     }
     SX1280SetPacketParams( &SX1280.PacketParams );
     SX1280SendPayload( buffer, size, 0 );

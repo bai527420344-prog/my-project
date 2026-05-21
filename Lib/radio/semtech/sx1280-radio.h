@@ -42,6 +42,7 @@ typedef enum
 {
     MODEM_FSK = 0,
     MODEM_LORA,
+    MODEM_FLRC,     //!< Fast Long Range Communication (SX1280 only; not on SX1262)
 }RadioModems_t;
 
 /*!
