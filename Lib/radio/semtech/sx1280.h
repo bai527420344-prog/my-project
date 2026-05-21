@@ -404,6 +404,43 @@ typedef enum
 }RadioLoRaIQModes_t;
 
 /*!
+ * \brief FLRC bit-rate / bandwidth combinations (SetModulationParams byte[0]).
+ *        Datasheet 14.6.5 / official sx1280-driver-c/sx1280.h:381-395
+ */
+typedef enum
+{
+    FLRC_BR_2_600_BW_2_4                    = 0x04,
+    FLRC_BR_2_080_BW_2_4                    = 0x28,
+    FLRC_BR_1_300_BW_1_2                    = 0x45,
+    FLRC_BR_1_040_BW_1_2                    = 0x69,
+    FLRC_BR_0_650_BW_0_6                    = 0x86,
+    FLRC_BR_0_520_BW_0_6                    = 0xAA,
+    FLRC_BR_0_325_BW_0_3                    = 0xC7,
+    FLRC_BR_0_260_BW_0_3                    = 0xEB,
+}RadioFlrcBitrates_t;
+
+/*!
+ * \brief FLRC convolutional-code rate (SetModulationParams byte[1]).
+ */
+typedef enum
+{
+    FLRC_CR_1_2                             = 0x00,
+    FLRC_CR_3_4                             = 0x02,
+    FLRC_CR_1_0                             = 0x04,
+}RadioFlrcCodingRates_t;
+
+/*!
+ * \brief FLRC sync-word length (SetPacketParams byte[1]).
+ *        FLRC sync word is 4 bytes (vs GFSK's 5); written at
+ *        REG_LR_SYNCWORDBASEADDRESS + 1.
+ */
+typedef enum
+{
+    FLRC_NO_SYNC_WORD                       = 0x00,
+    FLRC_SYNC_WORD_LEN_P32S                 = 0x04,    //!< 32-bit sync word (4 bytes)
+}RadioFlrcSyncWordLengths_t;
+
+/*!
  * \brief Represents the voltage used to control the TCXO on/off from DIO3
  */
 typedef enum
@@ -510,6 +547,17 @@ typedef struct
             RadioLoRaCodingRates_t       CodingRate;        //!< Coding rate for the LoRa modulation
             uint8_t                      LowDatarateOptimize; //!< Indicates if the modem uses the low datarate optimization
         }LoRa;
+        /*!
+         * \brief FLRC modulation parameters (datasheet 14.6.5).
+         *        BitrateBandwidth and CodingRate are pre-encoded chip values
+         *        (see RadioFlrcBitrates_t / RadioFlrcCodingRates_t).
+         */
+        struct
+        {
+            RadioFlrcBitrates_t          BitrateBandwidth;  //!< FLRC bit-rate + bandwidth (single byte for chip)
+            RadioFlrcCodingRates_t       CodingRate;        //!< FLRC convolutional-code rate
+            RadioModShapings_t           ModulationShaping; //!< Gaussian shaping (BT 0.5 or 1.0)
+        }Flrc;
     }Params;                                                //!< Holds the modulation parameters structure
 }ModulationParams_t;
 
@@ -546,6 +594,23 @@ typedef struct
             RadioLoRaCrcModes_t          CrcMode;           //!< Size of CRC block in LoRa packet
             RadioLoRaIQModes_t           InvertIQ;          //!< Allows to swap IQ for LoRa packet
         }LoRa;
+        /*!
+         * \brief FLRC packet parameters (datasheet 14.6.6 PacketParam1..7).
+         *        Byte order in SetPacketParams (PACKET_TYPE_FLRC):
+         *          [0]=PreambleLength  [1]=SyncWordLength  [2]=SyncWordMatch
+         *          [3]=HeaderType      [4]=PayloadLength   [5]=CrcLength
+         *          [6]=Whitening
+         */
+        struct
+        {
+            uint16_t                       PreambleLength;    //!< FLRC preamble Tx length (bits), encoded via SX1280GetGfskPreambleLenParam-style helper
+            RadioFlrcSyncWordLengths_t     SyncWordLength;    //!< FLRC sync word length (4 bytes / 32 bits = 0x04)
+            uint8_t                        SyncWordMatch;     //!< Sync-word correlator select (hardcoded to 0x10 = SW1, same as GFSK)
+            RadioPacketLengthModes_t       HeaderType;        //!< Fixed / variable header
+            uint8_t                        PayloadLength;     //!< Payload size in bytes
+            RadioCrcTypes_t                CrcLength;         //!< CRC length (FLRC supports OFF / 2-byte / 3-byte / 4-byte)
+            RadioDcFree_t                  DcFree;            //!< Whitening on/off (same as GFSK enum)
+        }Flrc;
     }Params;                                                //!< Holds the packet parameters structure
 }PacketParams_t;
 
