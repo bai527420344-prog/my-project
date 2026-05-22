@@ -100,11 +100,6 @@
   #define GLORIA_INTERFACE_RF_BAND      24   /* 2450 MHz (see table in radio_constants.c for options); config will be overwritten by binary patching! */
 #endif /* FLOCKLAB */
 
-/* When set to 1, task_com skips lwb_init / lwb_start so that radio is left
- * idle after radio_init. Only the CLI is active. Used for raw GFSK hardware
- * testing via 'gfsk_test ...' commands without LWB interference. */
-#define GFSK_TEST_MODE                  0
-
 /* LWB config */
 #define LWB_ENABLE                      1
 #define LWB_NETWORK_ID                  0x4444

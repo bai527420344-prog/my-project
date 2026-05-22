@@ -1183,7 +1183,6 @@ end:
       radio_transmit_scheduled((uint8_t*) message, length, hs_timer_get_current_timestamp());   //FIXME: use proper schedule timestamp
     }
     else {
-//      write_test_registers();
       radio_transmit((uint8_t*) message, length);
     }
 

@@ -132,15 +132,6 @@ void vTask_com(void const * argument)
   /* make sure the radio is awake */
   radio_wakeup();
 
-#if GFSK_TEST_MODE
-  /* Radio is initialized but LWB / Gloria / scheduling are disabled.
-   * Test the radio exclusively via 'gfsk_test ...' CLI commands. */
-  LOG_INFO("GFSK_TEST_MODE active: LWB disabled, radio idle. Use 'gfsk_test ...' commands.");
-  for (;;) {
-    osDelay(1000);
-  }
-#endif /* GFSK_TEST_MODE */
-
   /* set gloria config values */
   gloria_set_tx_power(gloria_power);
   gloria_set_modulation(gloria_modulation);
