@@ -70,7 +70,8 @@ void system_init_platform(void)
 
   /* configure interrupts / wakeup resources */
 #ifndef DEVKIT
-  HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN1_HIGH);
+  /* PA0 is used as SX1280 NRESET on the L476 + SX1280 prototype, so it must
+   * not also be enabled as WKUP1. */
   HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN2_HIGH);
 #endif
 
