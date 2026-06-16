@@ -309,17 +309,17 @@ void LPTIM1_IRQHandler(void)
 /* USER CODE BEGIN 1 */
 
 /**
-  * @brief This function handles EXTI line3 interrupt.
+  * @brief This function handles EXTI line1 interrupt.
   */
-void EXTI3_IRQHandler(void)
+void EXTI1_IRQHandler(void)
 {
-  /* USER CODE BEGIN EXTI3_IRQn 0 */
+  /* USER CODE BEGIN EXTI1_IRQn 0 */
   ISR_ON_IND();
-  /* USER CODE END EXTI3_IRQn 0 */
+  /* USER CODE END EXTI1_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(COM_TREQ_Pin);
-  /* USER CODE BEGIN EXTI3_IRQn 1 */
+  /* USER CODE BEGIN EXTI1_IRQn 1 */
   ISR_OFF_IND();
-  /* USER CODE END EXTI3_IRQn 1 */
+  /* USER CODE END EXTI1_IRQn 1 */
 }
 /* USER CODE END 1 */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -42,9 +42,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     /* RADIO_DIO1 interrupt triggered (PB4, via PB4-PB11 jumper wire) */
     GPIO_Radio_Callback();
   }
-  else if (GPIO_Pin == GPIO_PIN_3)
+  else if (GPIO_Pin == COM_TREQ_Pin)
   {
-    GPIO_PIN_3_Callback();
+    GPIO_COM_TREQ_Callback();
   }
 
 #if FLOCKLAB
@@ -59,7 +59,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 #endif /* FLOCKLAB */
 }
 
-__weak void GPIO_PIN_3_Callback(void) 
+__weak void GPIO_COM_TREQ_Callback(void)
 {
   // NOP
 }

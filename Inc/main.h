@@ -50,9 +50,7 @@ extern "C" {
 
 extern volatile uint16_t host_id; // for binary patching
 
-#if BOLT_ENABLE
-extern SPI_HandleTypeDef hspi1;
-#endif /* BOLT_ENABLE */
+extern SPI_HandleTypeDef hspi2;
 
 /* USER CODE END EC */
 
@@ -87,16 +85,17 @@ void      rtos_check_stack_usage(void);
 #define RADIO_DIO1_WAKEUP_EXTI_IRQn EXTI4_IRQn
 #define BOLT_IND_Pin GPIO_PIN_0
 #define BOLT_IND_GPIO_Port GPIOA
-#define COM_TREQ_Pin GPIO_PIN_3
+#define COM_TREQ_Pin GPIO_PIN_1
 #define COM_TREQ_GPIO_Port GPIOA
+#define COM_TREQ_EXTI_IRQn EXTI1_IRQn
 #define APP_IND_Pin GPIO_PIN_4
 #define APP_IND_GPIO_Port GPIOA
-#define BOLT_SCK_Pin GPIO_PIN_5
-#define BOLT_SCK_GPIO_Port GPIOA
-#define BOLT_MISO_Pin GPIO_PIN_6
-#define BOLT_MISO_GPIO_Port GPIOA
-#define BOLT_MOSI_Pin GPIO_PIN_7
-#define BOLT_MOSI_GPIO_Port GPIOA
+#define BOLT_SCK_Pin GPIO_PIN_13
+#define BOLT_SCK_GPIO_Port GPIOB
+#define BOLT_MISO_Pin GPIO_PIN_14
+#define BOLT_MISO_GPIO_Port GPIOB
+#define BOLT_MOSI_Pin GPIO_PIN_15
+#define BOLT_MOSI_GPIO_Port GPIOB
 #define BOLT_ACK_Pin GPIO_PIN_0
 #define BOLT_ACK_GPIO_Port GPIOB
 #define BOLT_REQ_Pin GPIO_PIN_1
@@ -123,14 +122,14 @@ void      rtos_check_stack_usage(void);
 #define RADIO_ANTSEL_GPIO_Port GPIOA
 #define COM_PROG2_Pin GPIO_PIN_12
 #define COM_PROG2_GPIO_Port GPIOA
-#define COM_PROG_Pin GPIO_PIN_14
-#define COM_PROG_GPIO_Port GPIOA
+#define COM_PROG_Pin GPIO_PIN_4
+#define COM_PROG_GPIO_Port GPIOC
 #define RADIO_DIO1_Pin GPIO_PIN_11
 #define RADIO_DIO1_GPIO_Port GPIOB
 #define COM_GPIO2_Pin GPIO_PIN_11
 #define COM_GPIO2_GPIO_Port GPIOA
-#define COM_GPIO1_Pin GPIO_PIN_3
-#define COM_GPIO1_GPIO_Port GPIOH
+#define COM_GPIO1_Pin GPIO_PIN_5
+#define COM_GPIO1_GPIO_Port GPIOB
 #define LED_GREEN_Pin GPIO_PIN_8
 #define LED_GREEN_GPIO_Port GPIOB
 #define LED_RED_Pin GPIO_PIN_9
