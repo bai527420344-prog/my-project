@@ -106,9 +106,10 @@
   */
 
 #include "stm32l4xx.h"
+#include "board_config.h"
 
 #if !defined  (HSE_VALUE)
-  #define HSE_VALUE    8000000U  /*!< Value of the External oscillator in Hz */
+  #define HSE_VALUE    BOARD_HSE_VALUE_HZ  /*!< Board-selected HSE input frequency */
 #endif /* HSE_VALUE */
 
 #if !defined  (MSI_VALUE)

@@ -15,6 +15,10 @@
 ######################################
 TARGET = comboard_lwb
 
+# Hardware selection (0 = custom PCB, 1 = Nucleo + DLP-RFS1280).
+# Override without editing sources: make BOARD_TYPE=0
+BOARD_TYPE ?= 1
+
 
 ######################################
 # building variables
@@ -188,7 +192,8 @@ AS_DEFS =
 # C defines
 C_DEFS =  \
 -DUSE_HAL_DRIVER \
--DSTM32L476xx
+-DSTM32L476xx \
+-DBOARD_TYPE=$(BOARD_TYPE)
 
 
 # AS includes
@@ -286,6 +291,18 @@ $(BUILD_DIR):
 #######################################
 clean:
 	-rm -fR $(BUILD_DIR)
+
+.PHONY: nucleo custom
+
+# Convenience targets always clean first so objects from another board type
+# can never be reused accidentally.
+nucleo:
+	$(MAKE) clean
+	$(MAKE) BOARD_TYPE=1 all
+
+custom:
+	$(MAKE) clean
+	$(MAKE) BOARD_TYPE=0 all
   
 #######################################
 # dependencies

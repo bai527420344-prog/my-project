@@ -137,6 +137,7 @@ void vTask_com(void const * argument)
   gloria_set_modulation(gloria_modulation);
   gloria_set_band(gloria_band);
 
+#if LOG_ENABLE && (LOG_LEVEL > LOG_LEVEL_WARNING)
   {
     const char* mod_name =
       (gloria_modulation <= 7)                       ? "LoRa SF" :
@@ -153,6 +154,7 @@ void vTask_com(void const * argument)
       LOG_INFO("modulation index %u: %s %lu kbit/s", gloria_modulation, mod_name, kbps);
     }
   }
+#endif /* LOG_ENABLE && (LOG_LEVEL > LOG_LEVEL_WARNING) */
 
   /* set LWB config values */
   if (lwb_sched_set_period(lwb_period)) { // Note: period needs to be larger than max round duration (based on current values of )

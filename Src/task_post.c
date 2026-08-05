@@ -82,10 +82,8 @@ void vTask_post(void const * argument)
     /* print some stats */
     LOG_INFO("CPU duty cycle:  %u%%    radio duty cycle (rx/tx):  %uppm/%uppm", (uint16_t)rtos_get_cpu_dc() / 100, radio_get_rx_dc(), radio_get_tx_dc());
 
-    /* flush the log print queue */
-#if !LOG_PRINT_IMMEDIATELY
-    log_flush();
-#endif /* LOG_PRINT_IMMEDIATELY */
+    /* flush the log print queue (no-op when logging is disabled) */
+    LOG_FLUSH();
 
     /* before telling the state machine to enter low-power mode, wait for the UART transmission to complete (must be done here, NOT in lpm_prepare) */
 #if LOG_USE_DMA

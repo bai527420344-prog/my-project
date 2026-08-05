@@ -36,6 +36,8 @@
 #ifndef __STM32L4xx_HAL_CONF_H
 #define __STM32L4xx_HAL_CONF_H
 
+#include "board_config.h"
+
 #ifdef __cplusplus
  extern "C" {
 #endif
@@ -112,7 +114,7 @@
   *        (when HSE is used as system clock source, directly or through the PLL).
   */
 #if !defined  (HSE_VALUE)
-  #define HSE_VALUE    ((uint32_t)12000000U) /*!< Value of the External oscillator in Hz */
+  #define HSE_VALUE    ((uint32_t)BOARD_HSE_VALUE_HZ) /*!< Board-selected HSE input frequency */
 #endif /* HSE_VALUE */
 
 #if !defined  (HSE_STARTUP_TIMEOUT)

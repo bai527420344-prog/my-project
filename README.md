@@ -10,6 +10,36 @@ The original baseline was:
 
 The current work keeps the original protocol logic as much as possible and only replaces the radio chip plus the required board-level adaptation.
 
+## Hardware target selection
+
+The same source tree supports both hardware versions:
+
+```bash
+# BOARD_TYPE=1: NUCLEO-L476 + DLP-RFS1280 (default)
+make nucleo
+
+# BOARD_TYPE=0: custom L476 + SX1280 ComBoard PCB
+make custom
+```
+
+These targets clean before compiling so objects from different boards cannot be
+mixed. Board-specific HSE frequency/mode, PLL, ANTSEL and J400 SWD behavior are
+defined centrally in [Inc/board_config.h](Inc/board_config.h). Network role,
+modulation and logging remain independent application settings.
+
+### Board validation status
+
+| Board setting | Current status | Required verification |
+|---|---|---|
+| `BOARD_TYPE=1` — NUCLEO-L476 + DLP-RFS1280 | Hardware-validated on 2026-07-15 | Node2 joined the existing L476+SX1280 Host and delivered one message every 15 s; whole-node STOP2 baseline was approximately 10.65 µA |
+| `BOARD_TYPE=0` — custom L476 + SX1280 PCB | Compiles successfully; hardware not yet available | After PCB assembly, verify the 12 MHz HSE, J400 SWD/reset, USART2, SX1280 TX/RX, LWB joining and STOP2 power |
+
+Until the custom PCB is manufactured, `BOARD_TYPE=0` being buildable means
+compile-time validation only; it must not be described as hardware-validated.
+The `BOARD_TYPE=1` regression has been completed using the existing Nucleo
+host/node setup. See [COMMISSIONING.md](COMMISSIONING.md) and
+[论文/论文.md](论文/论文.md) for the procedure and power measurements.
+
 ## Project Status (2026-05-21)
 
 Migration `SX1262 → SX1280` is complete. All planned modules `R0`–`R6` and `F` have been validated end-to-end; `R7` (final cleanup) is in progress.

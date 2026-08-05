@@ -189,6 +189,7 @@ uint8_t gloria_stop(void)
   // only stop if flood is not terminated yet
   if (flood_running) {
 
+#if LOG_ENABLE && (LOG_LEVEL > LOG_LEVEL_ERROR)
     if (!flood_completed && flood.initiator) {
       // if this node is initiator, we can detect if flood did not terminate and warn the user
       uint32_t dbg_exec, dbg_irq, dbg_txd;
@@ -206,6 +207,7 @@ uint8_t gloria_stop(void)
                   dbg_bb, dbg_ba, dbg_hw,
                   raw_status, RADIO_READ_BUSY_PIN() ? 1 : 0);
     }
+#endif /* LOG_ENABLE && (LOG_LEVEL > LOG_LEVEL_ERROR) */
 
 #if GLORIA_INTERFACE_WAIT_TX_FINISHED
     // if a transmission is ongoing, wait for it to complete

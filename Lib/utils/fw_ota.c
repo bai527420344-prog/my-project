@@ -151,10 +151,8 @@ void fw_ota(uint8_t radio_mod, uint8_t radio_band, int8_t radio_txpwr)
       pkt_rcvd = false;
     }
     HAL_Delay(10);
-    /* flush print queue */
-#if !LOG_PRINT_IMMEDIATELY
-    log_flush();
-#endif /* LOG_PRINT_IMMEDIATELY */
+    /* flush print queue (no-op when logging is disabled) */
+    LOG_FLUSH();
   }
 
   LOG_INFO("timeout");
@@ -749,4 +747,3 @@ static bool fw_erase_data(void)
 }
 
 #endif /* FW_OTA_ENABLE */
-

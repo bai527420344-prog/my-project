@@ -102,9 +102,6 @@ static void error_blink_forever(void)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  static const uint8_t r2_main_alive[] = "R2: main alive\r\n";
-  static const uint8_t r2_after_system_init[] = "R2: after system_init\r\n";
-
   HAL_Init();
   SystemClock_Config();
 
@@ -112,15 +109,13 @@ int main(void)
    * The ST-LINK debugger may have set TRACE_IOEN during a previous
    * flash/debug session, causing the CoreSight TPIU to drive PB3.
    * This bit survives soft-resets; clearing it releases PB3 for use
-   * as RADIO_BUSY.  Must happen BEFORE MX_GPIO_Init(). */
+  * as RADIO_BUSY.  Must happen BEFORE MX_GPIO_Init(). */
   {
-    uint32_t cr_before = DBGMCU->CR;
     DBGMCU->CR &= ~DBGMCU_CR_TRACE_IOEN;
     /* Also force PB3 out of AF mode at register level, in case
      * MX_GPIO_Init hasn't run yet (after reset PB3 = AF0/JTDO). */
     GPIOB->MODER &= ~(0x3U << (3 * 2));   /* PB3 MODER = 00 (input) */
     GPIOB->AFR[0] &= ~(0xFU << (3 * 4));  /* PB3 AFRL  = 0          */
-    (void)cr_before;  /* available for printf debugging if needed */
   }
 
   MX_GPIO_Init();
@@ -132,11 +127,7 @@ int main(void)
   MX_TIM16_Init();
   MX_LPTIM1_Init();
 
-  HAL_UART_Transmit(&huart2, (uint8_t*)r2_main_alive, sizeof(r2_main_alive) - 1, 100);
-
   system_init();
-
-  HAL_UART_Transmit(&huart2, (uint8_t*)r2_after_system_init, sizeof(r2_after_system_init) - 1, 100);
 
   if (HAL_TIM_Base_Start_IT(&htim2) != HAL_OK) {
     Error_Handler();
@@ -165,14 +156,18 @@ void SystemClock_Config(void)
   __HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_LOW);
 
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE | RCC_OSCILLATORTYPE_HSI | RCC_OSCILLATORTYPE_LSE;
+#if BOARD_HSE_IS_BYPASS
   RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
+#else
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+#endif
   RCC_OscInitStruct.LSEState = RCC_LSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 2;
-  RCC_OscInitStruct.PLL.PLLN = 24;
+  RCC_OscInitStruct.PLL.PLLM = BOARD_PLL_M;
+  RCC_OscInitStruct.PLL.PLLN = BOARD_PLL_N;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
@@ -524,6 +519,16 @@ static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
+#if BOARD_TYPE == BOARD_NUCLEO_L476
+  /*
+   * These baseboard/BOLT inputs are not connected on the Nucleo jumper-wire
+   * setup.  Do not leave their digital input buffers floating in STOP2.
+   */
+  const uint32_t unconnected_input_pull = GPIO_PULLDOWN;
+#else
+  const uint32_t unconnected_input_pull = GPIO_NOPULL;
+#endif /* BOARD_HAS_PROG_GPIO */
+
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
@@ -531,7 +536,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, BOLT_REQ_Pin|BOLT_MODE_Pin|COM_GPIO2_Pin|LED_RED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, BOLT_REQ_Pin|BOLT_MODE_Pin|LED_RED_Pin, GPIO_PIN_RESET);
+
+  /* COM_GPIO2 is PA11, not PB11 (PB11 is RADIO_DIO1/TIM2_CH4). */
+  HAL_GPIO_WritePin(COM_GPIO2_GPIO_Port, COM_GPIO2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(RADIO_NSS_GPIO_Port, RADIO_NSS_Pin, GPIO_PIN_SET);
@@ -539,23 +547,31 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(RADIO_NRESET_GPIO_Port, RADIO_NRESET_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pin Output Level */
+#if BOARD_HAS_ANTSEL
+  /* Nucleo + DLP-RFS1280 antenna selection output. */
   HAL_GPIO_WritePin(RADIO_ANTSEL_GPIO_Port, RADIO_ANTSEL_Pin, GPIO_PIN_SET);
+#endif
 
-  /*Configure GPIO pin Output Level */
+#if BOARD_HAS_PROG_GPIO
+  /* NUCLEO-only activity/debug GPIOs; PA13/PA14 stay reserved for SWD on J400. */
   HAL_GPIO_WritePin(COM_PROG2_GPIO_Port, COM_PROG2_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(COM_PROG_GPIO_Port, COM_PROG_Pin, GPIO_PIN_RESET);
+#endif /* BOARD_HAS_PROG_GPIO */
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(COM_GPIO1_GPIO_Port, COM_GPIO1_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : BOLT_IND_Pin APP_IND_Pin */
-  GPIO_InitStruct.Pin = BOLT_IND_Pin|APP_IND_Pin;
+  /*Configure GPIO pin : APP_IND_Pin */
+  GPIO_InitStruct.Pin = APP_IND_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  GPIO_InitStruct.Pull = unconnected_input_pull;
+  HAL_GPIO_Init(APP_IND_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : BOLT_IND_Pin (COM_IND on PB7) */
+  GPIO_InitStruct.Pin = BOLT_IND_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = unconnected_input_pull;
+  HAL_GPIO_Init(BOLT_IND_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : RADIO_BUSY_Pin (PB3) */
   GPIO_InitStruct.Pin = RADIO_BUSY_Pin;
@@ -566,13 +582,13 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : COM_TREQ_Pin (PA1) */
   GPIO_InitStruct.Pin = COM_TREQ_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = unconnected_input_pull;
   HAL_GPIO_Init(COM_TREQ_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : BOLT_ACK_Pin */
   GPIO_InitStruct.Pin = BOLT_ACK_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = unconnected_input_pull;
   HAL_GPIO_Init(BOLT_ACK_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : BOLT_REQ_Pin BOLT_MODE_Pin */
@@ -589,8 +605,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(RADIO_NSS_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB10 PB7 (unused) */
-  GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_7;
+  /*Configure GPIO pin : PB10 (unused) */
+  GPIO_InitStruct.Pin = GPIO_PIN_10;
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -608,26 +624,33 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(RADIO_NRESET_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : RADIO_ANTSEL_Pin (PA9) */
+#if BOARD_HAS_ANTSEL
+  /*Configure GPIO pin : RADIO_ANTSEL_Pin (PA9, Nucleo only) */
   GPIO_InitStruct.Pin = RADIO_ANTSEL_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(RADIO_ANTSEL_GPIO_Port, &GPIO_InitStruct);
+#endif
 
-  /*Configure GPIO pins : COM_PROG2_Pin (PA12, RX indicator) and COM_GPIO2_Pin (PA11, TX indicator) */
-  GPIO_InitStruct.Pin = COM_PROG2_Pin|COM_GPIO2_Pin;
+  /*Configure GPIO pin : COM_GPIO2_Pin (PA11, TX indicator) */
+  GPIO_InitStruct.Pin = COM_GPIO2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(COM_GPIO2_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : COM_PROG_Pin (PC4) */
+#if BOARD_HAS_PROG_GPIO
+  /* NUCLEO-only GPIO indicators; custom J400 uses PA13/PA14 for SWD. */
+  GPIO_InitStruct.Pin = COM_PROG2_Pin;
+  HAL_GPIO_Init(COM_PROG2_GPIO_Port, &GPIO_InitStruct);
+
   GPIO_InitStruct.Pin = COM_PROG_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(COM_PROG_GPIO_Port, &GPIO_InitStruct);
+#endif /* BOARD_TYPE */
 
   /*Configure GPIO pin : LED_RED_Pin */
   GPIO_InitStruct.Pin = LED_RED_Pin;

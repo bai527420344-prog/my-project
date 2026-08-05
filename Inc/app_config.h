@@ -35,6 +35,20 @@
 #ifndef __APP_CONFIG_H
 #define __APP_CONFIG_H
 
+#include "board_config.h"
+
+/*
+ * Board validation status:
+ * - BOARD_TYPE=1 (NUCLEO-L476 + DLP-RFS1280) is the current hardware baseline.
+ *   Hardware validation on 2026-07-15 confirmed that NODE_ID 2 joins the
+ *   existing LWB network and exchanges one message every 15 seconds.
+ * - BOARD_TYPE=0 (custom ComBoard PCB) is compile-validated only.  The PCB has
+ *   not been manufactured yet, so do not claim hardware validation until HSE,
+ *   J400/SWD, UART, SX1280 communication and STOP2 are tested on the real PCB.
+ *
+ * Select the hardware with `make nucleo` or `make custom`; network role and
+ * experiment settings below remain independent of BOARD_TYPE.
+ */
 
 /* --- adjustable parameters --- */
 
@@ -46,7 +60,7 @@
 /* network parameters */
 #define HOST_ID                         1           /* note: host ID is only used to determine whether a node is a host node (irrelevant for source nodes); config will be overwritten by binary patching! */
 #if !FLOCKLAB
-  #define NODE_ID                       HOST_ID
+  #define NODE_ID                       2
 #endif /* FLOCKLAB */
 #define IS_HOST                         (NODE_ID == host_id)
 
@@ -57,6 +71,7 @@
   #define LOW_POWER_MODE                LP_MODE_STOP2  /* low-power mode to use between rounds during periods of inactivity */
 #endif /* SWO_ENABLE */
 #define LPM_DISABLE_GPIO_CLOCKS         0
+#define LPM_DISABLE_DEBUG               1           /* do not keep DBGMCU clocked in STOP2/Standby */
 
 /* data collection / generation */
 #define DATA_GENERATION_PERIOD          15          /* in seconds */
@@ -133,10 +148,10 @@
 #define LPTIMER_RESET_WDG_ON_OVF        0
 #define LPTIMER_RESET_WDG_ON_EXP        0
 #define LPTIMER_CHECK_EXP_TIME          1
-#define CLI_ENABLE                      1           /* command line interface */
+#define CLI_ENABLE                      0           /* disable 1ms CLI polling so FreeRTOS tickless idle can enter STOP2 */
 
 /* logging */
-#define LOG_ENABLE                      1
+#define LOG_ENABLE                      0           /* production low-power build: no UART logging */
 #define LOG_LEVEL                       LOG_LEVEL_INFO
 #define LOG_USE_DMA                     0
 #define LOG_BUFFER_SIZE                 4096
@@ -178,8 +193,14 @@
   #define GLORIA_STOP_IND()             led_off(LED_SYSTEM); PIN_CLR(COM_GPIO1)
   #define RADIO_TX_START_IND()          PIN_SET(COM_GPIO2)
   #define RADIO_TX_STOP_IND()           PIN_CLR(COM_GPIO2)
-  #define RADIO_RX_START_IND()          PIN_SET(COM_PROG2)
-  #define RADIO_RX_STOP_IND()           PIN_CLR(COM_PROG2)
+  #if BOARD_TYPE == BOARD_CUSTOM_COMBOARD
+    /* COM_PROG2 is PA13/SWDIO on J400: never use it as an activity GPIO. */
+    #define RADIO_RX_START_IND()
+    #define RADIO_RX_STOP_IND()
+  #else
+    #define RADIO_RX_START_IND()        PIN_SET(COM_PROG2)
+    #define RADIO_RX_STOP_IND()         PIN_CLR(COM_PROG2)
+  #endif /* BOARD_TYPE */
 #endif /* FLOCKLAB */
 
 #endif /* __APP_CONFIG_H */

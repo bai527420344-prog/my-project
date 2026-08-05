@@ -83,8 +83,8 @@ void      rtos_check_stack_usage(void);
 #define RADIO_DIO1_WAKEUP_Pin GPIO_PIN_4
 #define RADIO_DIO1_WAKEUP_GPIO_Port GPIOB
 #define RADIO_DIO1_WAKEUP_EXTI_IRQn EXTI4_IRQn
-#define BOLT_IND_Pin GPIO_PIN_0
-#define BOLT_IND_GPIO_Port GPIOA
+#define BOLT_IND_Pin GPIO_PIN_7
+#define BOLT_IND_GPIO_Port GPIOB
 #define COM_TREQ_Pin GPIO_PIN_1
 #define COM_TREQ_GPIO_Port GPIOA
 #define COM_TREQ_EXTI_IRQn EXTI1_IRQn
@@ -118,12 +118,23 @@ void      rtos_check_stack_usage(void);
 #define UART_RX_GPIO_Port GPIOA
 #define RADIO_BUSY_Pin GPIO_PIN_3
 #define RADIO_BUSY_GPIO_Port GPIOB
+#if BOARD_HAS_ANTSEL
 #define RADIO_ANTSEL_Pin GPIO_PIN_9
 #define RADIO_ANTSEL_GPIO_Port GPIOA
+#endif
+#if BOARD_TYPE == BOARD_CUSTOM_COMBOARD
+/* J400 programming nets: keep these pins reserved for the SWD peripheral. */
+#define COM_PROG2_Pin GPIO_PIN_13
+#define COM_PROG2_GPIO_Port GPIOA
+#define COM_PROG_Pin GPIO_PIN_14
+#define COM_PROG_GPIO_Port GPIOA
+#else
+/* NUCLEO development setup: standalone activity/debug GPIOs. */
 #define COM_PROG2_Pin GPIO_PIN_12
 #define COM_PROG2_GPIO_Port GPIOA
 #define COM_PROG_Pin GPIO_PIN_4
 #define COM_PROG_GPIO_Port GPIOC
+#endif /* BOARD_TYPE */
 #define RADIO_DIO1_Pin GPIO_PIN_11
 #define RADIO_DIO1_GPIO_Port GPIOB
 #define COM_GPIO2_Pin GPIO_PIN_11

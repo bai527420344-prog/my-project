@@ -195,10 +195,18 @@ bool lpm_prepare(void)
         Error_Handler();
       }
       HAL_RCCEx_WakeUpStopCLKConfig(RCC_STOP_WAKEUPCLOCK_HSI);
-      /* disable MSI */
-      RCC_OscInitStruct.OscillatorType    = RCC_OSCILLATORTYPE_MSI;
+      /*
+       * HSI is now the system clock, so the run-mode HSE source and PLL are no
+       * longer needed.  Disable them explicitly before STOP2.  On Nucleo this
+       * also disconnects the active ST-LINK MCO input from the VCORE clock
+       * domain. SystemClock_Config() restores the board-selected HSE mode and
+       * PLL after wake-up.
+       */
+      RCC_OscInitStruct.OscillatorType    = RCC_OSCILLATORTYPE_MSI |
+                                             RCC_OSCILLATORTYPE_HSE;
       RCC_OscInitStruct.MSIState          = RCC_MSI_OFF;
-      RCC_OscInitStruct.PLL.PLLState      = RCC_PLL_NONE;
+      RCC_OscInitStruct.HSEState          = RCC_HSE_OFF;
+      RCC_OscInitStruct.PLL.PLLState      = RCC_PLL_OFF;
       if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
         Error_Handler();
       }
