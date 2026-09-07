@@ -99,7 +99,7 @@ typedef struct {
   uint8_t  ack_mode;                      // 2: initiator waits for ack, 1: send ack to save energy, 0: no ack requested
   uint8_t  ack_counter;                   // number of acks sent
   uint8_t  band;                          // radio_band_t selection as defined in radio_constants.h [0-51]
-  uint8_t  modulation;                    // radio_config_t selection as defined in radio_constants.h [0-9]
+  uint8_t  modulation;                    // radio_config_t selection as defined in radio_constants.h [0, RADIO_NUM_MODULATIONS)
   int8_t   power;                         // power for this flood
   int8_t   first_rx_index;                // used to save slot number of first receive
   int8_t   snr;                           // save snr of received data msg

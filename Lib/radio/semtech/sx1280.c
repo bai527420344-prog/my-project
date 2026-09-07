@@ -739,6 +739,19 @@ void SX1280GetPacketStatus( PacketStatus_t *pktStatus )
             pktStatus->Params.Gfsk.FreqError = 0;
             break;
 
+        case PACKET_TYPE_FLRC:
+            /*
+             * FLRC GetPacketStatus has the same RSSI byte position as GFSK:
+             * packetStatus[15:8] is rssiSync and its value is -2 * dBm.
+             * Keep using the GFSK storage for compatibility with Radio.RxDone;
+             * FLRC has no packet SNR or averaged-RSSI field.
+             */
+            pktStatus->Params.Gfsk.RxStatus = status[2];
+            pktStatus->Params.Gfsk.RssiSync = -( int8_t )( status[1] / 2U );
+            pktStatus->Params.Gfsk.RssiAvg = pktStatus->Params.Gfsk.RssiSync;
+            pktStatus->Params.Gfsk.FreqError = 0;
+            break;
+
         case PACKET_TYPE_LORA:
             pktStatus->Params.LoRa.RssiPkt = -status[0] >> 1;
             // Returns SNR value [dB] rounded to the nearest integer value

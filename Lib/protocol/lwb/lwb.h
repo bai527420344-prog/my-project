@@ -76,7 +76,7 @@
 #endif /* LWB_NUM_HOPS */
 
 #ifndef LWB_BOOTSTRAP_TIMEOUT
-#define LWB_BOOTSTRAP_TIMEOUT     (120 * LWB_TIMER_FREQUENCY)     /* in ticks */
+#define LWB_BOOTSTRAP_TIMEOUT     (300 * LWB_TIMER_FREQUENCY)     /* 5 SF12 rounds; in ticks */
 #endif /* LWB_BOOTSTRAP_TIMEOUT */
 
 /* max. number of data or request slots per round */

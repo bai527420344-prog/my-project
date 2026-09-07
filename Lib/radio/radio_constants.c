@@ -32,7 +32,7 @@
 
 #if RADIO_ENABLE
 
-const radio_config_t radio_modulations[RADIO_NUM_MODULATIONS] =
+const radio_config_t radio_modulations[] =
 {
     // NOTE: bandwidth is the Bandwidths[] index (0=203kHz, 1=406kHz, 2=812kHz, 3=1625kHz)
     {   // 0: LoRa SF12
@@ -101,21 +101,14 @@ const radio_config_t radio_modulations[RADIO_NUM_MODULATIONS] =
         .fdev = 62500,
         .preambleLen = 4,
     },
-    {   // 9: GFSK 200kbit/s
-        .modem = MODEM_FSK,
-        .bandwidth = 234300,
-        .datarate = 200000,
-        .fdev = 10000,
-        .preambleLen = 2,
-    },
-    {   // 10: GFSK 250kbit/s — fdev=125k → mod_idx=1.0 (matches SX1280 dev kit demo; baseline 23.5k = mod_idx 0.188 below SX1280 min 0.35)
+    {   // 9: GFSK 250kbit/s — fdev=125k → mod_idx=1.0 (matches SX1280 dev kit demo; baseline 23.5k = mod_idx 0.188 below SX1280 min 0.35)
         .modem = MODEM_FSK,
         .bandwidth = 600000,
         .datarate = 250000,
         .fdev = 125000,
         .preambleLen = 4,
     },
-    {   // 11: FLRC 260kbit/s, CR=1/2, BW=300kHz — best sensitivity (~-111 dBm)
+    {   // 10: FLRC 260kbit/s, CR=1/2, BW=300kHz — best sensitivity (~-111 dBm)
         // For the weak DLP-RFS1280 RF chain this is the recommended FLRC entry.
         // `.coderate` is repurposed for FLRC: 1=CR_1/2, 2=CR_3/4, 3=CR_1/1
         // (see SX1280GetFlrcCrParam in sx1280-radio.c).
@@ -126,7 +119,7 @@ const radio_config_t radio_modulations[RADIO_NUM_MODULATIONS] =
         .coderate = 1,
         .preambleLen = 4,
     },
-    {   // 12: FLRC 650kbit/s, CR=1/2, BW=600kHz — mid-rate, ~-105 dBm
+    {   // 11: FLRC 650kbit/s, CR=1/2, BW=600kHz — mid-rate, ~-105 dBm
         .modem = MODEM_FLRC,
         .bandwidth = 600000,
         .datarate = 650000,
@@ -134,7 +127,7 @@ const radio_config_t radio_modulations[RADIO_NUM_MODULATIONS] =
         .coderate = 1,
         .preambleLen = 4,
     },
-    {   // 13: FLRC 1300kbit/s, CR=3/4, BW=1.2MHz — highest data rate, ~-100 dBm
+    {   // 12: FLRC 1300kbit/s, CR=3/4, BW=1.2MHz — highest data rate, ~-100 dBm
         .modem = MODEM_FLRC,
         .bandwidth = 1200000,
         .datarate = 1300000,
@@ -143,6 +136,9 @@ const radio_config_t radio_modulations[RADIO_NUM_MODULATIONS] =
         .preambleLen = 4,
     },
 };
+
+_Static_assert(sizeof(radio_modulations) / sizeof(radio_modulations[0]) == RADIO_NUM_MODULATIONS,
+               "RADIO_NUM_MODULATIONS does not match radio_modulations");
 
 const radio_band_t radio_bands[RADIO_NUM_BANDS] =
 {

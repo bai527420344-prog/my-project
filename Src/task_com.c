@@ -77,6 +77,7 @@ void collect_radio_stats(uint16_t initiator_id, lwb_phases_t lwb_phase, lwb_pack
     int8_t   snr           = -99;
     int16_t  rssi          = -99;
     uint8_t  payload_len   = 0;
+    uint32_t toa_us        = 0;
     uint8_t  t_ref_updated = 0;
     uint64_t network_time  = 0;
     uint64_t t_ref         = 0;
@@ -86,6 +87,7 @@ void collect_radio_stats(uint16_t initiator_id, lwb_phases_t lwb_phase, lwb_pack
       snr            = gloria_get_snr();
       rssi           = gloria_get_rssi();
       payload_len    = gloria_get_payload_len();
+      toa_us         = radio_get_toa(payload_len, gloria_modulation);
       t_ref_updated  = gloria_is_t_ref_updated();
       if (t_ref_updated) {
         lwb_get_last_syncpoint(&network_time, &t_ref);
@@ -102,6 +104,7 @@ void collect_radio_stats(uint16_t initiator_id, lwb_phases_t lwb_phase, lwb_pack
              "\"rssi\":%d,"
              "\"snr\":%d,"
              "\"payload_len\":%d,"
+             "\"toa_us\":%lu,"
              "\"t_ref_updated\":%llu,"
              "\"network_time\":%llu,"
              "\"t_ref\":%llu"
@@ -114,6 +117,7 @@ void collect_radio_stats(uint16_t initiator_id, lwb_phases_t lwb_phase, lwb_pack
       rssi,
       snr,
       payload_len,
+      toa_us,
       t_ref_updated,
       network_time,
       t_ref
@@ -141,15 +145,15 @@ void vTask_com(void const * argument)
   {
     const char* mod_name =
       (gloria_modulation <= 7)                       ? "LoRa SF" :
-      (gloria_modulation >= 8  && gloria_modulation <= 10) ? "GFSK" :
-      (gloria_modulation >= 11 && gloria_modulation <= 13) ? "FLRC" :
+      (gloria_modulation >= 8  && gloria_modulation <= 9)  ? "GFSK" :
+      (gloria_modulation >= 10 && gloria_modulation <= 12) ? "FLRC" :
                                                        "UNKNOWN";
     if (gloria_modulation <= 7) {
       LOG_INFO("modulation index %u: %s%u (LoRa, BW per radio_constants)",
                gloria_modulation, mod_name, 12U - gloria_modulation);
     } else {
-      static const uint32_t fsk_flrc_kbps[] = {125, 200, 250, 260, 650, 1300};
-      uint32_t kbps = (gloria_modulation >= 8 && gloria_modulation <= 13)
+      static const uint32_t fsk_flrc_kbps[] = {125, 250, 260, 650, 1300};
+      uint32_t kbps = (gloria_modulation >= 8 && gloria_modulation <= 12)
                        ? fsk_flrc_kbps[gloria_modulation - 8] : 0U;
       LOG_INFO("modulation index %u: %s %lu kbit/s", gloria_modulation, mod_name, kbps);
     }
@@ -192,6 +196,7 @@ void vTask_com(void const * argument)
            "\"n_tx\":%d,"
            "\"num_hops\":%d,"
            "\"lwb_pkt_len\":%d,"
+           "\"max_pkt_toa_us\":%lu,"
            "\"lwb_num_slots\":%d,"
            "\"lwb_period\":%lu,"
            "\"health_msg_period\":%lu"
@@ -204,6 +209,7 @@ void vTask_com(void const * argument)
     lwb_get_n_tx(),
     lwb_get_num_hops(),
     LWB_MAX_PAYLOAD_LEN,
+    radio_get_toa(LWB_MAX_PAYLOAD_LEN, gloria_modulation),
     LWB_MAX_DATA_SLOTS,
     lwb_sched_get_period(),
     data_period

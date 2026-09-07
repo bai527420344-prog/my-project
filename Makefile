@@ -18,6 +18,9 @@ TARGET = comboard_lwb
 # Hardware selection (0 = custom PCB, 1 = Nucleo + DLP-RFS1280).
 # Override without editing sources: make BOARD_TYPE=0
 BOARD_TYPE ?= 1
+NODE_ID ?= 2
+COLLECT_FLOODING_DATA ?= 0
+TX_POWER ?= 1
 
 
 ######################################
@@ -193,7 +196,10 @@ AS_DEFS =
 C_DEFS =  \
 -DUSE_HAL_DRIVER \
 -DSTM32L476xx \
--DBOARD_TYPE=$(BOARD_TYPE)
+-DBOARD_TYPE=$(BOARD_TYPE) \
+-DNODE_ID=$(NODE_ID) \
+-DCOLLECT_FLOODING_DATA=$(COLLECT_FLOODING_DATA) \
+-DGLORIA_INTERFACE_POWER=$(TX_POWER)
 
 
 # AS includes

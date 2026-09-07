@@ -78,6 +78,12 @@ typedef void (* radio_cad_cb_t)(bool);
 typedef void (* radio_timeout_cb_t)(bool crc_error);
 typedef void (* radio_tx_cb_t)(void);
 
+typedef struct {
+  uint32_t sequence;
+  uint32_t ticks;
+  uint8_t  payload_len;
+} radio_tx_timing_t;
+
 
 /* include all required radio drivers */
 #include "radio/semtech/sx1280-radio.h"
@@ -122,6 +128,11 @@ uint32_t  radio_get_tx_dc(void);
 uint64_t  radio_get_tx_time(void);
 void      radio_dc_counter_reset(void);
 uint32_t  radio_get_prr(bool reset);      /* returns the packet reception rate in [% * 10^2] */
+
+/* High-resolution TX marker timing (TIM2 at HS_TIMER_FREQUENCY).
+ * Measurements cover the same TX-active interval indicated on COM_GPIO2. */
+void      radio_tx_timing_set_payload_len(uint8_t payload_len);
+bool      radio_tx_timing_pop(radio_tx_timing_t* timing);
 
 /* debug: DIO1 interrupt path counters */
 void      radio_dbg_get_counters(uint32_t* execute, uint32_t* irq_capture, uint32_t* tx_done);

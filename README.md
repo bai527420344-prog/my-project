@@ -50,9 +50,15 @@ The three SX1280 modulations are all running over LWB with two physical boards (
 |---|---|---|
 | `7`  | LoRa SF5             | validated |
 | `8`  | GFSK 125 kbit/s      | validated |
-| `11` | FLRC 260 kbit/s CR=1/2 | validated |
-| `9`/`10`     | GFSK 200k / 250k    | table entries present, not end-to-end verified |
-| `12`/`13`    | FLRC 650k / 1300k   | table entries present, not end-to-end verified |
+| `10` | FLRC 260 kbit/s CR=1/2 | validated |
+| `9`  | GFSK 250k              | table entry present, not end-to-end verified |
+| `11`/`12` | FLRC 650k / 1300k | table entries present, not end-to-end verified |
+
+The table contains 13 PHY configuration profiles (`0` through `12`): eight
+LoRa spreading factors, two GFSK profiles, and three FLRC profiles. The former
+SX1262-derived GFSK 200 kbit/s entry was removed because SX1280 has no native
+200 kbit/s bitrate/bandwidth encoding; profiles that followed it moved down by
+one index.
 
 Switching between modulations only requires changing the value of `GLORIA_INTERFACE_MODULATION` in [Inc/app_config.h](Inc/app_config.h) and rebuilding both boards (`make clean && make -j4 && st-flash ...`). The boot log line `task_com: modulation index N: <name> <rate>` shows the active mode.
 

@@ -143,11 +143,19 @@ inline int32_t gloria_get_rx_ex_offset(gloria_flood_t* flood)
 /*
  * calculate rx timeout in hs timer ticks
  */
-inline uint16_t gloria_calculate_rx_timeout(gloria_flood_t* flood)
+inline uint32_t gloria_calculate_rx_timeout(gloria_flood_t* flood)
 {
   const gloria_timings_t* timings = &(gloria_timings[flood->modulation]);
 
-  return (uint64_t) (2*timings->rxOffset + radio_get_toa_hs(0, flood->modulation) + 2*flood->guard_time);
+  /*
+   * LoRa SF12 needs several million HS-timer ticks even for an empty
+   * packet/preamble.  A uint16_t return value silently wrapped here and made
+   * receivers stop before the SF12 preamble had completed, preventing initial
+   * synchronization even on a strong conducted link.
+   */
+  return 2U * timings->rxOffset
+       + radio_get_toa_hs(0, flood->modulation)
+       + 2U * flood->guard_time;
 }
 
 

@@ -517,21 +517,16 @@ void SX1280SetRfTxPower( int8_t power )
 void SX1280AntSwOn( void )
 {
 #if BOARD_HAS_ANTSEL
-    /* The jumper-wire development setup uses the DLP external antenna path. */
-    HAL_GPIO_WritePin(RADIO_ANTSEL_GPIO_Port, RADIO_ANTSEL_Pin, GPIO_PIN_RESET);
+    /* DLP-RFS1280 ANTSEL polarity A/B test: select the high path. */
+    HAL_GPIO_WritePin(RADIO_ANTSEL_GPIO_Port, RADIO_ANTSEL_Pin, GPIO_PIN_SET);
 #endif
 }
 
 void SX1280AntSwOff( void )
 {
 #if BOARD_HAS_ANTSEL
-    /*
-     * DLP-RFS1280 has a 100 kOhm pull-down on ANTSEL.  Driving ANTSEL high
-     * while the radio sleeps wastes about 3.3 V / 100 kOhm = 33 uA.  The RF
-     * switch has no true off state, so keep the externally selected antenna
-     * state low between rounds and avoid that static current path.
-     */
-    HAL_GPIO_WritePin(RADIO_ANTSEL_GPIO_Port, RADIO_ANTSEL_Pin, GPIO_PIN_RESET);
+    /* Keep the A/B-test antenna path selected between protocol rounds. */
+    HAL_GPIO_WritePin(RADIO_ANTSEL_GPIO_Port, RADIO_ANTSEL_Pin, GPIO_PIN_SET);
 #endif
 }
 

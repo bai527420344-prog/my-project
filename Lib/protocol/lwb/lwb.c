@@ -734,6 +734,17 @@ int32_t lwb_calc_drift_comp(uint32_t elapsed_ticks)
 
 static void lwb_print_stats(void)
 {
+  radio_tx_timing_t tx_timing;
+  while (radio_tx_timing_pop(&tx_timing)) {
+    uint32_t toa_ns = tx_timing.ticks * 125UL;
+    LOG_INFO("{\"type\":\"tx_toa_gpio\",\"sequence\":%lu,\"modulation\":%u,\"payload_len\":%u,\"toa_ticks\":%lu,\"toa_ns\":%lu}",
+             tx_timing.sequence,
+             GLORIA_INTERFACE_MODULATION,
+             tx_timing.payload_len,
+             tx_timing.ticks,
+             toa_ns);
+  }
+
   /* DIO1 interrupt path diagnostic (per-round) */
   {
     uint32_t exec_cnt, irq_cnt, txd_cnt;

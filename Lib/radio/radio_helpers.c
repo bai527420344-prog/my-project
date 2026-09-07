@@ -54,6 +54,18 @@ volatile static uint8_t channel_free = 0;       // set in the CAD callback
 radio_message_t* last_message_list = NULL;
 
 
+/* LoRa and FLRC both use the coderate argument in the SX1280 driver.
+ * GFSK does not use it.  Keeping this decision in one place prevents FLRC
+ * coderates from being silently replaced by zero before SetModulationParams. */
+static uint8_t radio_get_coderate(uint8_t modulation_index)
+{
+  RadioModems_t modem = radio_modulations[modulation_index].modem;
+  return (modem == MODEM_LORA || modem == MODEM_FLRC)
+           ? radio_modulations[modulation_index].coderate
+           : 0;
+}
+
+
 void radio_update_cli()
 {
   if (!radio_irq_direct && cli_initialized) {
@@ -107,6 +119,7 @@ uint8_t radio_get_payload_size()
 void radio_set_payload_size(uint8_t size)
 {
   lora_last_payload_size = size;
+  radio_tx_timing_set_payload_len(size);
   Radio.SetMaxPayloadLength(size);
 }
 
@@ -217,7 +230,7 @@ void radio_set_config_tx(uint8_t modulation_index,
       (radio_modulations[current_modulation].modem == MODEM_FSK) ? fdev : 0, // FSK frequency deviation
       bandwidth,
       datarate,
-      (radio_modulations[current_modulation].modem == MODEM_LORA) ? radio_modulations[current_modulation].coderate : 0,
+      radio_get_coderate(current_modulation),
       preamble_len,
       implicit,
       crc,
@@ -264,7 +277,7 @@ void radio_set_config_rx(uint8_t modulation_index,
       radio_modulations[current_modulation].modem,
       (radio_modulations[current_modulation].modem == MODEM_LORA) ? bandwidth : bandwidth_rx,
       datarate,
-      (radio_modulations[current_modulation].modem == MODEM_LORA) ? radio_modulations[current_modulation].coderate : 0,
+      radio_get_coderate(current_modulation),
       0,            // AFC Bandwidth (FSK only)
       preamble_len,
       timeout,
@@ -301,7 +314,7 @@ void radio_set_config(uint8_t modulation_index,
       (radio_modulations[current_modulation].modem == MODEM_FSK) ? radio_modulations[current_modulation].fdev : 0, // FSK frequency deviation
       radio_modulations[current_modulation].bandwidth,
       radio_modulations[current_modulation].datarate,
-      (radio_modulations[current_modulation].modem == MODEM_LORA) ? radio_modulations[current_modulation].coderate : 0,
+      radio_get_coderate(current_modulation),
       radio_modulations[current_modulation].preambleLen,
       false,    // use explicit mode
       true,     // use crc
@@ -317,7 +330,7 @@ void radio_set_config(uint8_t modulation_index,
       radio_modulations[current_modulation].modem,
       (radio_modulations[current_modulation].modem == MODEM_LORA) ? radio_modulations[current_modulation].bandwidth : bandwidth_rx,
       radio_modulations[current_modulation].datarate,
-      (radio_modulations[current_modulation].modem == MODEM_LORA) ? radio_modulations[current_modulation].coderate : 0,
+      radio_get_coderate(current_modulation),
       0,
       radio_modulations[current_modulation].preambleLen,
       0,

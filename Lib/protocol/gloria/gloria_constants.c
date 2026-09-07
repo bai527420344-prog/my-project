@@ -32,10 +32,10 @@
 
 const uint8_t gloria_modulations[]             = { 3,  5,  7, 9 };
 const int8_t  gloria_powers[]                  = { 0, 10, 12 };                                 // dBm
-const uint8_t gloria_default_power_levels[]    = { 0,  0,  0,  0,  0,  0,  0,  0,  2,  2,  2,  2,  2,  2 };  // see radio_powers; FLRC entries 11-13 use same as GFSK
-const uint8_t gloria_default_retransmissions[] = { 3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3 };
-const uint8_t gloria_default_acks[]            = { 3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3 };
-const uint8_t gloria_default_data_slots[]      = { 4,  4,  4,  4,  8,  8, 12, 12, 16, 16, 16, 16, 16, 16 };
+const uint8_t gloria_default_power_levels[]    = { 0,  0,  0,  0,  0,  0,  0,  0,  2,  2,  2,  2,  2 };  // see radio_powers; FLRC entries 10-12 use same as GFSK
+const uint8_t gloria_default_retransmissions[] = { 3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3 };
+const uint8_t gloria_default_acks[]            = { 3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3 };
+const uint8_t gloria_default_data_slots[]      = { 4,  4,  4,  4,  8,  8, 12, 12, 16, 16, 16, 16, 16 };
 
 /*
  * SX1280 theoretical timing values (20260413)
@@ -52,7 +52,7 @@ const uint8_t gloria_default_data_slots[]      = { 4,  4,  4,  4,  8,  8, 12, 12
  *   txSync:            SF12-SF7: ratio 8/13,         SF6-SF5: 2276 + 26.875 * Ts
  *
  * where Ts = SX1280 symbol time at BW=203.125 kHz (from radio_lora_symb_times[0][]).
- * GFSK entries (8-10) kept at SX1262 values (same bit rates, similar transition times).
+ * GFSK entries (8-9) kept at SX1262 values (same bit rates, similar transition times).
  *
  * These are THEORETICAL starting values. Hardware calibration required in R6.
  */
@@ -120,40 +120,33 @@ const gloria_timings_t gloria_timings[] = {
         .rxOffset           = 4096,     // 512.000 us
         .txSync             = 4137,     // 517.125 us (SX1262 value, same bitrate)
     },
-    { // 9 (FSK 200k)
-        .slotOverhead       = 26400,    // 3.3 ms
-        .slotAckOverhead    = 26400,    // 3.3 ms
-        .floodInitOverhead  = 18000,    // 2.25 ms
-        .rxOffset           = 2560,     // 320.000 us
-        .txSync             = 3034,     // 379.25 us (SX1262 value, same bitrate)
-    },
-    { // 10 (FSK 250k)
+    { // 9 (FSK 250k)
         .slotOverhead       = 14000,    // 1.75 ms
         .slotAckOverhead    = 14000,    // 1.75 ms
         .floodInitOverhead  = 18000,    // 2.25 ms
         .rxOffset           = 2560,     // 320.000 us
         .txSync             = 3140,     // 392.5 us (SX1262 value, same bitrate)
     },
-    /* FLRC entries 11-13: conservative starting values per MIGRATION_PLAN
+    /* FLRC entries 10-12: conservative starting values per MIGRATION_PLAN
      * R6 rule "宁可浪费时间，不可打断 flood". FLRC physical bitrate is high
      * (260k..1.3M) but the chip-side state-machine overhead is similar to GFSK,
      * so we reuse GFSK overhead numbers and scale by bitrate ratio.
      * Hardware calibration deferred to F8 / R6 follow-up. */
-    { // 11 (FLRC 260k CR=1/2)  -> effective payload bitrate ~130 kbit/s
+    { // 10 (FLRC 260k CR=1/2)  -> effective payload bitrate ~130 kbit/s
         .slotOverhead       = 32000,    // 4.0 ms  (a bit more than GFSK 125k due to FLRC header)
         .slotAckOverhead    = 32000,
         .floodInitOverhead  = 18000,    // 2.25 ms
         .rxOffset           = 4096,     // 512 us
         .txSync             = 4500,     // ~562 us (placeholder)
     },
-    { // 12 (FLRC 650k CR=1/2)  -> effective ~325 kbit/s
+    { // 11 (FLRC 650k CR=1/2)  -> effective ~325 kbit/s
         .slotOverhead       = 20000,    // 2.5 ms
         .slotAckOverhead    = 20000,
         .floodInitOverhead  = 18000,
         .rxOffset           = 2560,
         .txSync             = 3200,
     },
-    { // 13 (FLRC 1300k CR=3/4) -> effective ~975 kbit/s
+    { // 12 (FLRC 1300k CR=3/4) -> effective ~975 kbit/s
         .slotOverhead       = 12000,    // 1.5 ms
         .slotAckOverhead    = 12000,
         .floodInitOverhead  = 18000,
@@ -161,3 +154,14 @@ const gloria_timings_t gloria_timings[] = {
         .txSync             = 2500,
     },
 };
+
+_Static_assert(sizeof(gloria_timings) / sizeof(gloria_timings[0]) == RADIO_NUM_MODULATIONS,
+               "gloria_timings must match radio_modulations");
+_Static_assert(sizeof(gloria_default_power_levels) / sizeof(gloria_default_power_levels[0]) == RADIO_NUM_MODULATIONS,
+               "gloria_default_power_levels must match radio_modulations");
+_Static_assert(sizeof(gloria_default_retransmissions) / sizeof(gloria_default_retransmissions[0]) == RADIO_NUM_MODULATIONS,
+               "gloria_default_retransmissions must match radio_modulations");
+_Static_assert(sizeof(gloria_default_acks) / sizeof(gloria_default_acks[0]) == RADIO_NUM_MODULATIONS,
+               "gloria_default_acks must match radio_modulations");
+_Static_assert(sizeof(gloria_default_data_slots) / sizeof(gloria_default_data_slots[0]) == RADIO_NUM_MODULATIONS,
+               "gloria_default_data_slots must match radio_modulations");

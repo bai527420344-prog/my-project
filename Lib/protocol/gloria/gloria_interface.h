@@ -56,7 +56,7 @@
  * configurations in radio_constants.c
  */
 #ifndef GLORIA_INTERFACE_MODULATION
-#define GLORIA_INTERFACE_MODULATION         10    // DIAGNOSTIC: GFSK 250k (same timing as old SX1262 project)
+#define GLORIA_INTERFACE_MODULATION         9     // DIAGNOSTIC: GFSK 250k (same timing as old SX1262 project)
 #endif /* GLORIA_INTERFACE_MODULATION */
 
 /**

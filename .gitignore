@@ -36,3 +36,13 @@ Inc/gitrev.h
 
 # data
 data
+/attenuation_test_results.csv
+/attenuation_test_results.md
+/Scripts/attenuation_live.py
+/Scripts/attenuation_pdr.py
+/thesis_chapter4_revised.md
+
+# local PCB, presentation, and thesis files
+/PCB/
+/ppt/
+/论文/

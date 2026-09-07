@@ -59,6 +59,17 @@ static volatile uint8_t           dbg_busy_before = 0;   /* BUSY pin right after
 static volatile uint8_t           dbg_busy_after  = 0;   /* BUSY pin after short wait */
 static volatile uint8_t           dbg_hw_status   = 0;   /* raw SX1280 status byte post-execute */
 
+/* One producer (radio IRQ) and one consumer (LWB task) TX timing queue. */
+#define RADIO_TX_TIMING_QUEUE_LEN  32U
+static volatile radio_tx_timing_t tx_timing_queue[RADIO_TX_TIMING_QUEUE_LEN];
+static volatile uint8_t           tx_timing_write_idx = 0;
+static volatile uint8_t           tx_timing_read_idx  = 0;
+static volatile uint32_t          tx_timing_sequence  = 0;
+static volatile uint32_t          tx_marker_start_tick = 0;
+static volatile uint8_t           tx_marker_payload_len = 0;
+static volatile uint8_t           tx_payload_len = 0;
+static volatile bool              tx_marker_active = false;
+
 /* function pointers */
 static radio_irq_cb_t     radio_irq_callback;
 static radio_rx_cb_t      radio_rx_callback      = 0;
@@ -77,6 +88,37 @@ void radio_tx_done_cb(void);
 void radio_tx_timeout_cb(void);
 void radio_rx_sync_cb(void);
 void radio_rx_preamble_cb(void);
+
+
+static inline void radio_tx_marker_start(void)
+{
+  RADIO_TX_START_IND();
+  tx_marker_start_tick   = hs_timer_get_counter();
+  tx_marker_payload_len  = tx_payload_len;
+  tx_marker_active       = true;
+}
+
+
+static inline void radio_tx_marker_stop(uint32_t end_tick, bool store)
+{
+  if (!tx_marker_active) {
+    RADIO_TX_STOP_IND();
+    return;
+  }
+
+  RADIO_TX_STOP_IND();
+  tx_marker_active = false;
+
+  if (store) {
+    uint8_t next = (uint8_t)((tx_timing_write_idx + 1U) % RADIO_TX_TIMING_QUEUE_LEN);
+    if (next != tx_timing_read_idx) {
+      tx_timing_queue[tx_timing_write_idx].sequence   = ++tx_timing_sequence;
+      tx_timing_queue[tx_timing_write_idx].ticks      = end_tick - tx_marker_start_tick;
+      tx_timing_queue[tx_timing_write_idx].payload_len = tx_marker_payload_len;
+      tx_timing_write_idx = next;
+    }
+  }
+}
 
 
 // restore basic radio configuration (e.g. after cold sleep)
@@ -122,6 +164,10 @@ void radio_init(void)
 
   dcstat_reset(&radio_dc_rx);
   dcstat_reset(&radio_dc_tx);
+  tx_timing_write_idx = 0;
+  tx_timing_read_idx  = 0;
+  tx_timing_sequence  = 0;
+  tx_marker_active    = false;
   RADIO_TX_STOP_IND();
   RADIO_RX_STOP_IND();
 
@@ -288,6 +334,11 @@ void radio_standby(void)
 void radio_irq_capture_cb(void)
 {
   dbg_irq_capture_cnt++;
+  /* In TX mode DIO1 marks TX_DONE. CCR4 is captured by hardware when the
+   * PB4-to-PB11 jumper is fitted, or snapshotted by the EXTI fallback. */
+  if (tx_marker_active) {
+    radio_tx_marker_stop((uint32_t)hs_timer_get_capture_timestamp(), true);
+  }
   if (radio_irq_callback) {
     radio_irq_callback();
   }
@@ -499,7 +550,7 @@ void radio_rx_preamble_cb(void)
 void radio_tx_done_cb(void)
 {
   dbg_tx_done_cnt++;
-  RADIO_TX_STOP_IND();
+  radio_tx_marker_stop(hs_timer_get_counter(), false);
   dcstat_stop(&radio_dc_tx);
 
   radio_set_timeout_callback(NULL);
@@ -514,7 +565,7 @@ void radio_tx_done_cb(void)
 
 void radio_tx_timeout_cb(void)
 {
-  RADIO_TX_STOP_IND();
+  radio_tx_marker_stop(hs_timer_get_counter(), false);
   dcstat_stop(&radio_dc_tx);
 
   radio_timeout_cb_t tmp = radio_timeout_callback;
@@ -544,7 +595,7 @@ static void radio_execute(void)
       break;
     case RF_TX_RUNNING:
       RADIO_RX_STOP_IND();
-      RADIO_TX_START_IND();
+      radio_tx_marker_start();
       dcstat_start(&radio_dc_tx);
       break;
     default:
@@ -565,7 +616,7 @@ void radio_transmit(uint8_t* buffer, uint8_t size)
   Radio.Tx(0, false);
   hs_timer_set_schedule_timestamp(hs_timer_get_counter());
   RADIO_RX_STOP_IND();
-  RADIO_TX_START_IND();
+  radio_tx_marker_start();
   dcstat_start(&radio_dc_tx);
 }
 
@@ -748,6 +799,32 @@ uint32_t radio_get_prr(bool reset)
     rx_successful_counter = rx_started_counter = 0;
   }
   return prr;
+}
+
+
+void radio_tx_timing_set_payload_len(uint8_t payload_len)
+{
+  tx_payload_len = payload_len;
+}
+
+
+bool radio_tx_timing_pop(radio_tx_timing_t* timing)
+{
+  if (!timing || tx_timing_read_idx == tx_timing_write_idx) {
+    return false;
+  }
+
+  ENTER_CRITICAL_SECTION();
+  if (tx_timing_read_idx == tx_timing_write_idx) {
+    LEAVE_CRITICAL_SECTION();
+    return false;
+  }
+  timing->sequence    = tx_timing_queue[tx_timing_read_idx].sequence;
+  timing->ticks       = tx_timing_queue[tx_timing_read_idx].ticks;
+  timing->payload_len = tx_timing_queue[tx_timing_read_idx].payload_len;
+  tx_timing_read_idx  = (uint8_t)((tx_timing_read_idx + 1U) % RADIO_TX_TIMING_QUEUE_LEN);
+  LEAVE_CRITICAL_SECTION();
+  return true;
 }
 
 

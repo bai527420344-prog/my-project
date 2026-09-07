@@ -514,6 +514,11 @@ static command_return_t gloria_rx_command_handler(command_execution_t execution)
     mod = strtol(mod_param->value, NULL, 10);
   }
 
+  if (mod >= RADIO_NUM_MODULATIONS) {
+    cli_log_inline("Modulation index out of range!", CLI_LOG_LEVEL_ERROR, true, true, true);
+    return CMD_RET_FAILURE;
+  }
+
   int8_t pwr = gloria_powers[gloria_default_power_levels[mod]];
   value_t* pwr_param = command_get_parameter(&execution, 'o');
   if (pwr_param != NULL) {
@@ -637,6 +642,11 @@ static command_return_t gloria_tx_command_handler(command_execution_t execution)
   value_t* mod_param = command_get_parameter(&execution, 'm');
   if (mod_param != NULL) {
     mod = strtol(mod_param->value, NULL, 10);
+  }
+
+  if (mod >= RADIO_NUM_MODULATIONS) {
+    cli_log_inline("Modulation index out of range!", CLI_LOG_LEVEL_ERROR, true, true, true);
+    return CMD_RET_FAILURE;
   }
 
   uint16_t idx = 0;

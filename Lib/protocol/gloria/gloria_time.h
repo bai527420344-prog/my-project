@@ -36,7 +36,7 @@ uint32_t gloria_calculate_flood_time(uint8_t payload_len, uint8_t modulation, ui
 uint64_t gloria_calculate_tx_marker(gloria_flood_t* flood);
 uint64_t gloria_calculate_rx_marker(gloria_flood_t* flood);
 int32_t  gloria_get_rx_ex_offset(gloria_flood_t* flood);
-uint16_t gloria_calculate_rx_timeout(gloria_flood_t* flood);
+uint32_t gloria_calculate_rx_timeout(gloria_flood_t* flood);
 void     gloria_reconstruct_flood_marker(gloria_flood_t* flood);
 uint64_t gloria_get_message_timestamp(gloria_flood_t* flood);
 void     gloria_sync_timer(gloria_flood_t* flood);
